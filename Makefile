@@ -28,6 +28,19 @@ run: build
 test:
 	go test ./...
 
+# UI Management
+ui:
+	@echo "Starting gRPC Service Manager UI..."
+	@cd ui && go run server.go
+
+ui-build:
+	@echo "Building gRPC Service Manager UI..."
+	@cd ui && go build -o service-manager-ui server.go
+
+ui-clean:
+	@echo "Cleaning UI build artifacts..."
+	@cd ui && rm -f service-manager-ui
+
 # Cleanup targets
 .PHONY: clean
 clean:
