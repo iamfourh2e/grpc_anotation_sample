@@ -184,10 +184,11 @@ $GRPC_REG
 GATEWAY_GO="server/gateway.go"
 GATEWAY_REG="pb.Register${SERVICE_NAME}ServiceHandler(ctx, mux, conn)"
 grep -q "$GATEWAY_REG" "$GATEWAY_GO" || \
-  sed -i '' "/mux, conn);/a\\
-    if err = $GATEWAY_REG; err != nil {\\
-        return err\\
-    }\\
+  sed -i '' "/defer conn.Close()/a\\
+\\
+	if err = $GATEWAY_REG; err != nil {\\
+		return err\\
+	}\\
 " "$GATEWAY_GO"
 
 echo "Don't forget to run: make proto"
