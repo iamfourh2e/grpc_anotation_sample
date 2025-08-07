@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/api/annotations.proto";
+
+option go_package = "grpc_anotation_sample/pb";
+
+message Todo {
+  string id = 1;
+  string title = 2;
+  bool completed = 3;
+}
+
+message CreateTodoRequest {
+  string title = 1;
+}
+
+message CreateTodoResponse {
+  Todo todo = 1;
+}
+
+message StreamTodosRequest {}
+
+service TodoService {
+  rpc CreateTodo(CreateTodoRequest) returns (CreateTodoResponse) {
+    option (google.api.http) = {
+      post: "/v1/todos"
+      body: "*"
+    };
+  }
+
+  rpc StreamTodos(StreamTodosRequest) returns (stream Todo) {
+    option (google.api.http) = {
+      get: "/v1/todos/stream"
+    };
+  }
+}
