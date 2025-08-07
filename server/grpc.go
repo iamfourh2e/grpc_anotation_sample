@@ -1,15 +1,35 @@
 package server
 
 import (
+	"context"
 	"grpc_anotation_sample/pb"
 	"grpc_anotation_sample/services"
 	"log"
 	"net"
+	"os"
 
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"google.golang.org/grpc"
 )
 
 func StartGRPCServer(port string) error {
+	//load env
+	err := godotenv.Load()
+	if err != nil {
+		log.Printf("Failed to load env: %v", err)
+		return err
+	}
+	mongoUrl := os.Getenv("MONGO_URL")
+	dbName := os.Getenv("DB_NAME")
+	//load mongo client
+	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(mongoUrl))
+	if err != nil {
+		log.Printf("Failed to connect to mongo: %v", err)
+		return err
+	}
+
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Printf("Failed to listen: %v", err)
@@ -24,6 +44,8 @@ func StartGRPCServer(port string) error {
 	// }
 
 	grpcServer := grpc.NewServer()
+	pb.RegisterAuthorServiceServer(grpcServer, services.NewAuthorService(client, dbName))
+	pb.RegisterBookServiceServer(grpcServer, services.NewBookService(client, dbName))
 
 	pb.RegisterTodoServiceServer(grpcServer, services.NewTodoService())
 	pb.RegisterHealthServer(grpcServer, services.NewHealthService())

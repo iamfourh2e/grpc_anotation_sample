@@ -1,8 +1,61 @@
 #!/bin/bash
 
 # Usage: ./gen_service.sh ServiceName "field1:type1,field2:type2,..."
+#        ./gen_service.sh remove ServiceName
 
 set -e
+
+if [ "$1" = "remove" ]; then
+  if [ -z "$2" ]; then
+    echo "Usage: $0 remove ServiceName"
+    exit 1
+  fi
+  SERVICE_NAME_RAW="$2"
+  SERVICE_NAME="$(echo "$SERVICE_NAME_RAW" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+  SERVICE_NAME_LC="$(echo "$SERVICE_NAME_RAW" | tr '[:upper:]' '[:lower:]')"
+  PROTO_FILE="proto/${SERVICE_NAME_LC}.proto"
+  GO_FILE="services/${SERVICE_NAME_LC}.go"
+  GRPC_GO="server/grpc.go"
+  GATEWAY_GO="server/gateway.go"
+  GRPC_REG="pb.Register${SERVICE_NAME}ServiceServer(grpcServer, services.New${SERVICE_NAME}Service())"
+  GATEWAY_REG="pb.Register${SERVICE_NAME}ServiceHandler(ctx, mux, conn)"
+
+  # Remove proto file
+  if [ -f "$PROTO_FILE" ]; then
+    rm "$PROTO_FILE"
+    echo "Removed proto file: $PROTO_FILE"
+  else
+    echo "Proto file not found: $PROTO_FILE"
+  fi
+
+  # Remove Go service file
+  if [ -f "$GO_FILE" ]; then
+    rm "$GO_FILE"
+    echo "Removed Go service file: $GO_FILE"
+  else
+    echo "Go service file not found: $GO_FILE"
+  fi
+
+  # Remove registration from grpc.go
+  if grep -q "$GRPC_REG" "$GRPC_GO"; then
+    sed -i '' "/$GRPC_REG/d" "$GRPC_GO"
+    echo "Removed gRPC registration from $GRPC_GO"
+  else
+    echo "gRPC registration not found in $GRPC_GO"
+  fi
+
+  # Remove registration from gateway.go
+  if grep -q "$GATEWAY_REG" "$GATEWAY_GO"; then
+    # Remove the entire if block for this registration
+    sed -i '' "/if err = $GATEWAY_REG; err != nil {/,/}/d" "$GATEWAY_GO"
+    echo "Removed gateway registration from $GATEWAY_GO"
+  else
+    echo "Gateway registration not found in $GATEWAY_GO"
+  fi
+
+  echo "Service $SERVICE_NAME removed."
+  exit 0
+fi
 
 if [ -z "$1" ] || [ -z "$2" ]; then
   echo "Usage: $0 ServiceName \"field1:type1,field2:type2,...\""
@@ -123,18 +176,18 @@ fi
 GRPC_GO="server/grpc.go"
 GRPC_REG="pb.Register${SERVICE_NAME}ServiceServer(grpcServer, services.New${SERVICE_NAME}Service())"
 grep -q "$GRPC_REG" "$GRPC_GO" || \
-  sed -i '' "/grpcServer := grpc.NewServer()/a\
-    $GRPC_REG\
+  sed -i '' "/grpcServer := grpc.NewServer()/a\\
+$GRPC_REG
 " "$GRPC_GO"
 
 # Register in server/gateway.go
 GATEWAY_GO="server/gateway.go"
 GATEWAY_REG="pb.Register${SERVICE_NAME}ServiceHandler(ctx, mux, conn)"
 grep -q "$GATEWAY_REG" "$GATEWAY_GO" || \
-  sed -i '' "/mux, conn);/a\
-    if err = $GATEWAY_REG; err != nil {\
-        return err\
-    }\
+  sed -i '' "/mux, conn);/a\\
+    if err = $GATEWAY_REG; err != nil {\\
+        return err\\
+    }\\
 " "$GATEWAY_GO"
 
 echo "Don't forget to run: make proto"

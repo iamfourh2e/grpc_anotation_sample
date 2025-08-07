@@ -3,13 +3,15 @@ package services
 import (
 	"context"
 	"grpc_anotation_sample/pb"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type BookService struct {
 	pb.UnimplementedBookServiceServer
 }
 
-func NewBookService() *BookService {
+func NewBookService(Client *mongo.Client, dbName string) *BookService {
 	return &BookService{}
 }
 

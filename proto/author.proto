@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/api/annotations.proto";
+option go_package = "grpc_anotation_sample/pb";
+
+message Author {
+  string id = 1;
+  string name = 2;
+  string sex = 3;
+}
+
+message CreateAuthorRequest { Author data = 1; }
+message CreateAuthorResponse { Author data = 1; }
+message GetAuthorRequest { string id = 1; }
+message GetAuthorResponse { Author data = 1; }
+message UpdateAuthorRequest { Author data = 1; }
+message UpdateAuthorResponse { Author data = 1; }
+message DeleteAuthorRequest { string id = 1; }
+message DeleteAuthorResponse { bool success = 1; }
+message ListAuthorsRequest {}
+message ListAuthorsResponse { repeated Author data = 1; }
+
+service AuthorService {
+  rpc CreateAuthor(CreateAuthorRequest) returns (CreateAuthorResponse) {
+    option (google.api.http) = { post: "/v1/authors" body: "*" };
+  }
+  rpc GetAuthor(GetAuthorRequest) returns (GetAuthorResponse) {
+    option (google.api.http) = { get: "/v1/authors/{id}" };
+  }
+  rpc UpdateAuthor(UpdateAuthorRequest) returns (UpdateAuthorResponse) {
+    option (google.api.http) = { put: "/v1/authors/{data.id}" body: "*" };
+  }
+  rpc DeleteAuthor(DeleteAuthorRequest) returns (DeleteAuthorResponse) {
+    option (google.api.http) = { delete: "/v1/authors/{id}" };
+  }
+  rpc ListAuthors(ListAuthorsRequest) returns (ListAuthorsResponse) {
+    option (google.api.http) = { get: "/v1/authors" };
+  }
+}
+
