@@ -44,8 +44,9 @@ if [ "$1" = "remove" ]; then
   fi
 
   # Remove registration from grpc.go
-  if grep -q "$GRPC_REG" "$GRPC_GO"; then
-    sed -i '' "/$GRPC_REG/d" "$GRPC_GO"
+  GRPC_REG_REGEX="pb\\.Register${SERVICE_NAME}ServiceServer\\(grpcServer,[[:space:]]*services\\.New${SERVICE_NAME}Service\\([^)]*\\)\\)"
+  if grep -E -q "$GRPC_REG_REGEX" "$GRPC_GO"; then
+    sed -E -i '' "/$GRPC_REG_REGEX/d" "$GRPC_GO"
     echo "Removed gRPC registration from $GRPC_GO"
   else
     echo "gRPC registration not found in $GRPC_GO"
@@ -79,26 +80,97 @@ SERVICE_NAME_LC="$(echo "$SERVICE_NAME_RAW" | tr '[:upper:]' '[:lower:]')"
 PROTO_FILE="proto/${SERVICE_NAME_LC}.proto"
 GO_FILE="services/${SERVICE_NAME_LC}.go"
 
+# Helper to normalize field types
+normalize_type() {
+  local t="$1"
+  local tlc="$(echo "$t" | tr '[:upper:]' '[:lower:]')"
+  case "$tlc" in
+    string|bool|bytes|int32|int64|sint32|sint64|uint32|uint64|fixed32|fixed64|sfixed32|sfixed64|float|double)
+      echo "$tlc"
+      return 0
+      ;;
+    timestamp)
+      echo "google.protobuf.Timestamp"
+      return 0
+      ;;
+  esac
+  # If already fully qualified google.protobuf.Timestamp (any case), standardize casing
+  if [[ "$t" =~ ^[Gg][Oo][Oo][Gg][Ll][Ee]\.[Pp][Rr][Oo][Tt][Oo][Bb][Uu][Ff][Ff]\.[Tt][Ii][Mm][Ee][Ss][Tt][Aa][Mm][Pp]$ ]]; then
+    echo "google.protobuf.Timestamp"
+    return 0
+  fi
+  # Custom message type: ensure PascalCase first letter
+  local first="$(echo "${t:0:1}" | tr '[:lower:]' '[:upper:]')"
+  echo "${first}${t:1}"
+}
+
+# Pre-process fields to decide imports and build message body
+TIMESTAMP_USED=0
+FIELD_LINES="  string id = 1;\n"
+FIELD_NUM=2
+IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
+for FIELD in "${FIELDS[@]}"; do
+  RAW_TRIMMED="$(echo "$FIELD" | xargs)"
+  [ -z "$RAW_TRIMMED" ] && continue
+
+  NAME=""
+  TYPE_RAW=""
+  IS_REPEATED=0
+
+  if [[ "$RAW_TRIMMED" == *:* ]]; then
+    NAME="$(echo "$RAW_TRIMMED" | cut -d: -f1 | xargs)"
+    TYPE_RAW="$(echo "$RAW_TRIMMED" | cut -d: -f2- | xargs)"
+    # allow 'repeated <type>' after colon
+    case "$TYPE_RAW" in
+      repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#repeated }"
+        ;;
+      Repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#Repeated }"
+        ;;
+    esac
+  else
+    # accept 'repeated <type> <name>'
+    if [[ "$RAW_TRIMMED" =~ ^[Rr]epeated[[:space:]]+([^[:space:]]+)[[:space:]]+([a-z][A-Za-z0-9_]*)$ ]]; then
+      IS_REPEATED=1
+      TYPE_RAW="${BASH_REMATCH[1]}"
+      NAME="${BASH_REMATCH[2]}"
+    else
+      echo "Invalid field format: '$RAW_TRIMMED'. Use 'name:type' or 'repeated type name'" >&2
+      exit 1
+    fi
+  fi
+
+  TYPE_NORM="$(normalize_type "$TYPE_RAW")"
+  if [ "$TYPE_NORM" = "google.protobuf.Timestamp" ]; then
+    TIMESTAMP_USED=1
+  fi
+
+  if [ $IS_REPEATED -eq 1 ]; then
+    FIELD_LINES+="  repeated ${TYPE_NORM} ${NAME} = ${FIELD_NUM};\n"
+  else
+    FIELD_LINES+="  ${TYPE_NORM} ${NAME} = ${FIELD_NUM};\n"
+  fi
+  FIELD_NUM=$((FIELD_NUM+1))
+done
+
 # Start proto file
 echo 'syntax = "proto3";' > "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 echo 'package pb;' >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 echo 'import "google/api/annotations.proto";' >> "$PROTO_FILE"
+if [ $TIMESTAMP_USED -eq 1 ]; then
+  echo 'import "google/protobuf/timestamp.proto";' >> "$PROTO_FILE"
+fi
 echo "option go_package = \"${MODULE_PATH}/pb\";" >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 
 # Message fields
 echo "message ${SERVICE_NAME} {" >> "$PROTO_FILE"
-echo "  string id = 1;" >> "$PROTO_FILE"
-FIELD_NUM=2
-IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
-for FIELD in "${FIELDS[@]}"; do
-  NAME="$(echo $FIELD | cut -d: -f1 | xargs)"
-  TYPE="$(echo $FIELD | cut -d: -f2 | xargs)"
-  echo "  $TYPE $NAME = $FIELD_NUM;" >> "$PROTO_FILE"
-  FIELD_NUM=$((FIELD_NUM+1))
-done
+echo -e "$FIELD_LINES" >> "$PROTO_FILE"
 echo "}" >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 

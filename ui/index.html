@@ -325,6 +325,56 @@
             });
         }
 
+        // Normalize a single type token to standard proto naming
+        function normalizeTypeToken(t) {
+            if (!t) return t;
+            const scalars = new Set([
+                'string','bool','bytes','int32','int64','sint32','sint64','uint32','uint64',
+                'fixed32','fixed64','sfixed32','sfixed64','float','double'
+            ]);
+            const tlc = t.toLowerCase();
+            if (scalars.has(tlc)) return tlc;
+            if (tlc === 'timestamp') return 'google.protobuf.Timestamp';
+            if (tlc === 'google.protobuf.timestamp') return 'google.protobuf.Timestamp';
+            // Custom message: PascalCase first letter
+            return t[0].toUpperCase() + t.slice(1);
+        }
+
+        // Normalize full fields string: name:type pairs separated by commas
+        function normalizeFieldsString(fieldsStr) {
+            return fieldsStr
+                .split(',')
+                .map(pair => {
+                    const raw = pair.trim();
+                    if (!raw) return '';
+
+                    // Case 1: name:type (type may start with 'repeated ')
+                    if (raw.includes(':')) {
+                        const nameRaw = raw.split(':')[0].trim();
+                        let typeRaw = raw.split(':').slice(1).join(':').trim();
+                        let isRepeated = false;
+                        if (/^repeated\s+/i.test(typeRaw)) {
+                            isRepeated = true;
+                            typeRaw = typeRaw.replace(/^repeated\s+/i, '').trim();
+                        }
+                        const type = normalizeTypeToken(typeRaw);
+                        return `${nameRaw}:${isRepeated ? 'repeated ' : ''}${type}`;
+                    }
+
+                    // Case 2: repeated type name
+                    const m = raw.match(/^[Rr]epeated\s+([^\s]+)\s+([a-z][A-Za-z0-9_]*)$/);
+                    if (m) {
+                        const type = normalizeTypeToken(m[1]);
+                        const name = m[2];
+                        return `${name}:repeated ${type}`;
+                    }
+
+                    return raw; // leave untouched; server will validate
+                })
+                .filter(Boolean)
+                .join(',');
+        }
+
         async function handleCreateService(e) {
             e.preventDefault();
             
@@ -346,9 +396,11 @@
             // Validate fields format
             const fieldRegex = /^[a-z][a-zA-Z0-9_]*:[a-zA-Z][a-zA-Z0-9._]*(\s*,\s*[a-z][a-zA-Z0-9_]*:[a-zA-Z][a-zA-Z0-9._]*)*$/;
             if (!fieldRegex.test(serviceFields)) {
-                showAlert('Fields must be in format: fieldName:type,fieldName:type (e.g., name:string,email:string)', 'error');
+                showAlert('Fields must be in format: fieldName:type,fieldName:type (e.g., name:string,email:string or occurred_at:google.protobuf.Timestamp)', 'error');
                 return;
             }
+
+            const normalizedFields = normalizeFieldsString(serviceFields);
 
             showLoading(true);
 
@@ -360,7 +412,7 @@
                     },
                     body: JSON.stringify({
                         serviceName: serviceName,
-                        serviceFields: serviceFields
+                        serviceFields: normalizedFields
                     })
                 });
 
