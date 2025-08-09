@@ -175,8 +175,18 @@
             "name": {
               "type": "string"
             },
-            "sex": {
+            "desc": {
               "type": "string"
+            },
+            "age": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "favourites": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           }
         }
@@ -191,8 +201,18 @@
         "name": {
           "type": "string"
         },
-        "sex": {
+        "desc": {
           "type": "string"
+        },
+        "age": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "favourites": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

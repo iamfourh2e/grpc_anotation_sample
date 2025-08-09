@@ -380,9 +380,9 @@
             
             const formData = new FormData(e.target);
             const serviceName = formData.get('serviceName').trim();
-            const serviceFields = formData.get('serviceFields').trim();
+            const serviceFieldsRaw = formData.get('serviceFields').trim();
 
-            if (!serviceName || !serviceFields) {
+            if (!serviceName || !serviceFieldsRaw) {
                 showAlert('Please fill in all required fields.', 'error');
                 return;
             }
@@ -393,14 +393,14 @@
             return;
         }
 
-            // Validate fields format
-            const fieldRegex = /^[a-z][a-zA-Z0-9_]*:[a-zA-Z][a-zA-Z0-9._]*(\s*,\s*[a-z][a-zA-Z0-9_]*:[a-zA-Z][a-zA-Z0-9._]*)*$/;
-            if (!fieldRegex.test(serviceFields)) {
-                showAlert('Fields must be in format: fieldName:type,fieldName:type (e.g., name:string,email:string or occurred_at:google.protobuf.Timestamp)', 'error');
+            // Normalize first so we can validate both repeated syntaxes
+            const normalizedFields = normalizeFieldsString(serviceFieldsRaw);
+            // Validate fields format (allow 'repeated type')
+            const fieldRegex = /^[a-z][a-zA-Z0-9_]*:(repeated\s+)?[a-zA-Z][a-zA-Z0-9._]*(\s*,\s*[a-z][a-zA-Z0-9_]*:(repeated\s+)?[a-zA-Z][a-zA-Z0-9._]*)*$/;
+            if (!fieldRegex.test(normalizedFields)) {
+                showAlert('Fields must be in format: fieldName:type,fieldName:type (e.g., name:string,email:string or occurred_at:google.protobuf.Timestamp). Repeated: favourites:repeated string or repeated string favourites', 'error');
                 return;
             }
-
-            const normalizedFields = normalizeFieldsString(serviceFields);
 
             showLoading(true);
 

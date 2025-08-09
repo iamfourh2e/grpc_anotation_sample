@@ -28,6 +28,10 @@ func StartGatewayServer(grpcPort, gatewayAddress string) error {
 	}
 	defer conn.Close()
 
+	if err = pb.RegisterAuthorServiceHandler(ctx, mux, conn); err != nil {
+		return err
+	}
+
 
 
 	if err = pb.RegisterCategoryServiceHandler(ctx, mux, conn); err != nil {
@@ -39,9 +43,6 @@ func StartGatewayServer(grpcPort, gatewayAddress string) error {
 	}
 
 	if err = pb.RegisterTodoServiceHandler(ctx, mux, conn); err != nil {
-		return err
-	}
-	if err = pb.RegisterAuthorServiceHandler(ctx, mux, conn); err != nil {
 		return err
 	}
 	if err = pb.RegisterBookServiceHandler(ctx, mux, conn); err != nil {

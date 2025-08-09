@@ -3,22 +3,14 @@ package services
 import (
 	"context"
 	"grpc_anotation_sample/pb"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type AuthorService struct {
 	pb.UnimplementedAuthorServiceServer
-	Client  *mongo.Client
-	AuthCol *mongo.Collection
 }
 
-func NewAuthorService(client *mongo.Client, dbName string) *AuthorService {
-	col := client.Database(dbName).Collection("authors")
-	return &AuthorService{
-		Client:  client,
-		AuthCol: col,
-	}
+func NewAuthorService() *AuthorService {
+	return &AuthorService{}
 }
 
 func (s *AuthorService) CreateAuthor(ctx context.Context, req *pb.CreateAuthorRequest) (*pb.CreateAuthorResponse, error) {

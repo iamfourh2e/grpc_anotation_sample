@@ -8,7 +8,10 @@ option go_package = "grpc_anotation_sample/pb";
 message Author {
   string id = 1;
   string name = 2;
-  string sex = 3;
+  string desc = 3;
+  int32 age = 4;
+  repeated string favourites = 5;
+
 }
 
 message CreateAuthorRequest { Author data = 1; }
