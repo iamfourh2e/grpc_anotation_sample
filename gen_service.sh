@@ -5,6 +5,13 @@
 
 set -e
 
+# Determine module path from go.mod
+MODULE_PATH="$(awk '/^module /{print $2}' go.mod 2>/dev/null)"
+if [ -z "$MODULE_PATH" ]; then
+  echo "Error: Could not read module path from go.mod. Please run this script in the repository root." >&2
+  exit 1
+fi
+
 if [ "$1" = "remove" ]; then
   if [ -z "$2" ]; then
     echo "Usage: $0 remove ServiceName"
@@ -78,7 +85,7 @@ echo '' >> "$PROTO_FILE"
 echo 'package pb;' >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 echo 'import "google/api/annotations.proto";' >> "$PROTO_FILE"
-echo 'option go_package = "grpc_anotation_sample/pb";' >> "$PROTO_FILE"
+echo "option go_package = \"${MODULE_PATH}/pb\";" >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 
 # Message fields
@@ -136,7 +143,7 @@ package services
 
 import (
 	"context"
-	"grpc_anotation_sample/pb"
+	"${MODULE_PATH}/pb"
 )
 
 type ${SERVICE_NAME}Service struct {
