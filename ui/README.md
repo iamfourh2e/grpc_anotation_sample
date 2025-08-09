@@ -11,6 +11,8 @@ A modern, interactive web interface for managing gRPC services in your project. 
 - 🔄 **Auto-refresh**: Services list updates automatically
 - 📱 **Responsive**: Works on desktop and mobile devices
 - ⚡ **Real-time**: Instant feedback and loading states
+- 🧩 **Type normalization**: Accepts both scalar and message types, normalizes aliases (e.g., `timestamp` → `google.protobuf.Timestamp`)
+- 📚 **Repeated fields**: Supports `name:repeated type` and `repeated type name` syntaxes
 
 ## Quick Start
 
@@ -27,7 +29,7 @@ The UI will be available at: http://localhost:8081
 
 1. Open http://localhost:8081 in your browser
 2. Fill in the service name (e.g., "User")
-3. Add fields in the format: `name:string,email:string,age:int32`
+3. Add fields in the format: `name:string,email:string,age:int32` (repeated example: `favourites:repeated string` or `repeated string favourites`)
 4. Click "Create Service"
 
 ### 3. Remove a Service
@@ -54,8 +56,17 @@ Supported Protocol Buffer field types:
 - `bool` - Boolean values
 - `float` - 32-bit floating point
 - `double` - 64-bit floating point
-- `google.protobuf.Timestamp` - Timestamp values
+- `google.protobuf.Timestamp` - Timestamp values (also accepts alias `timestamp`)
 - `bytes` - Byte arrays
+- `repeated <type>` - Lists of any supported type (e.g., `repeated string`, `repeated UserRef`)
+
+## Field Syntax & Normalization
+
+- **Standard pair**: `fieldName:type`
+- **Repeated pair**: `fieldName:repeated type`
+- **Natural repeated**: `repeated type fieldName` (UI normalizes this to `fieldName:repeated type`)
+- **Timestamp alias**: `timestamp` is normalized to `google.protobuf.Timestamp` and the correct proto import is added automatically
+- **Custom messages**: Custom types are normalized to PascalCase for the first letter (e.g., `userRef` → `UserRef`)
 
 ## Examples
 
@@ -75,6 +86,12 @@ Fields: name:string,description:string,price:double,stock:int32,category:string
 ```
 Service Name: Order
 Fields: customer_id:string,items:bytes,total:double,status:string,created_at:google.protobuf.Timestamp
+```
+
+### Profile Service (repeated fields)
+```
+Service Name: Profile
+Fields: favourites:repeated string,repeated UserRef followers,aliases:repeated string
 ```
 
 ## File Structure
@@ -136,9 +153,8 @@ The UI integrates with your existing project by:
    - Ensure the service name matches the proto file name
    - Check that the proto file exists in the `proto/` directory
 
-### Logs
-
-The server provides detailed error messages in the API responses. Check the browser's developer console for additional debugging information.
+4. **Repeated field validation**
+   - Use either `name:repeated type` or `repeated type name` (e.g., `favourites:repeated string` or `repeated string favourites`). The UI normalizes both.
 
 ## Security Notes
 
