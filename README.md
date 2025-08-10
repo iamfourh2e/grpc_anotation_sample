@@ -4,7 +4,7 @@ This project demonstrates generating gRPC services with HTTP/REST gateway and a 
 
 ## Quick Start
 ```bash
-git clone https://github.com/iamfourh2e/grpc_anotation_sample
+git clone https://github.com/iamfourh2e/grpc_anotation_sample && cd grpc_anotation_sample
 ```
 ```bash
 rm -rf .git
