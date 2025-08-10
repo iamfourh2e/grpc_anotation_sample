@@ -3,6 +3,15 @@
 This project demonstrates generating gRPC services with HTTP/REST gateway and a helper UI to create/remove services quickly.
 
 ## Quick Start
+```bash
+git clone https://github.com/iamfourh2e/grpc_anotation_sample
+```
+```bash
+rm -rf .git
+```
+```bash
+make dev
+```
 
 ### Generate a Service
 
