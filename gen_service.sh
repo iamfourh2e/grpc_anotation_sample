@@ -185,13 +185,37 @@ normalize_type() {
       ;;
   esac
   # If already fully qualified google.protobuf.Timestamp (any case), standardize casing
-  if [[ "$t" =~ ^[Gg][Oo][Oo][Gg][Ll][Ee]\.[Pp][Rr][Oo][Tt][Oo][Bb][Uu][Ff][Ff]\.[Tt][Ii][Mm][Ee][Ss][Tt][Aa][Mm][Pp]$ ]]; then
+  local tlc_lower="$(echo "$t" | tr '[:upper:]' '[:lower:]')"
+  if [ "$tlc_lower" = "google.protobuf.timestamp" ]; then
     echo "google.protobuf.Timestamp"
     return 0
   fi
   # Custom message type: ensure PascalCase first letter
   local first="$(echo "${t:0:1}" | tr '[:lower:]' '[:upper:]')"
   echo "${first}${t:1}"
+}
+
+# Helper to convert snake_case to camelCase
+snake_to_camel() {
+  local input="$1"
+  local result=""
+  local next_upper=false
+  
+  for ((i=0; i<${#input}; i++)); do
+    local char="${input:$i:1}"
+    if [ "$char" = "_" ]; then
+      next_upper=true
+    else
+      if [ "$next_upper" = true ]; then
+        result+="$(echo "$char" | tr '[:lower:]' '[:upper:]')"
+        next_upper=false
+      else
+        result+="$char"
+      fi
+    fi
+  done
+  
+  echo "$result"
 }
 
 # Pre-process fields to decide imports and build message body
@@ -414,8 +438,10 @@ for FIELD in "${FIELDS[@]}"; do
     fi
   fi
   
-  # Capitalize field name for Go struct
-  FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+  # Convert snake_case to camelCase for Go struct field name
+  FIELD_NAME="$(snake_to_camel "$NAME")"
+  # Ensure first letter is uppercase for exported field (keep camelCase)
+  FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
   echo "	${FIELD_NAME} ${GO_TYPE} \`json:\"${NAME}\" bson:\"${NAME}\"\`" >> "$MODEL_FILE"
 done
 
@@ -475,16 +501,19 @@ for FIELD in "${FIELDS[@]}"; do
   
   # Generate field mapping
   if [ $IS_REPEATED -eq 1 ]; then
-    FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+    FIELD_NAME="$(snake_to_camel "$NAME")"
+    FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
     echo "		${FIELD_NAME}: m.${FIELD_NAME}," >> "$MODEL_FILE"
   else
     case "$TYPE_NORM" in
       google.protobuf.Timestamp)
-        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        FIELD_NAME="$(snake_to_camel "$NAME")"
+        FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
         echo "		${FIELD_NAME}: timestamppb.New(m.${FIELD_NAME})," >> "$MODEL_FILE"
         ;;
       *)
-        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        FIELD_NAME="$(snake_to_camel "$NAME")"
+        FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
         echo "		${FIELD_NAME}: m.${FIELD_NAME}," >> "$MODEL_FILE"
         ;;
     esac
@@ -542,16 +571,19 @@ for FIELD in "${FIELDS[@]}"; do
   
   # Generate field mapping
   if [ $IS_REPEATED -eq 1 ]; then
-    FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+    FIELD_NAME="$(snake_to_camel "$NAME")"
+    FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
     echo "		${FIELD_NAME}: p.${FIELD_NAME}," >> "$MODEL_FILE"
   else
     case "$TYPE_NORM" in
       google.protobuf.Timestamp)
-        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        FIELD_NAME="$(snake_to_camel "$NAME")"
+        FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
         echo "		${FIELD_NAME}: p.Get${FIELD_NAME}().AsTime()," >> "$MODEL_FILE"
         ;;
       *)
-        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        FIELD_NAME="$(snake_to_camel "$NAME")"
+        FIELD_NAME="$(echo "$FIELD_NAME" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
         echo "		${FIELD_NAME}: p.${FIELD_NAME}," >> "$MODEL_FILE"
         ;;
     esac

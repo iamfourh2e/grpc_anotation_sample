@@ -468,6 +468,7 @@
                         <h4>📝 Example:</h4>
                         <p><strong>Service Name:</strong> <code>User</code></p>
                         <p><strong>Fields:</strong> <code>name:string,email:string,age:int32,active:bool,created_at:google.protobuf.Timestamp</code></p>
+                <p><strong>Note:</strong> Field names in snake_case (e.g., <code>avatar_url</code>) will be converted to camelCase in Go structs (e.g., <code>AvatarUrl</code>) while preserving the original format in JSON/BSON tags.</p>
                         <p>This will create a User service with CRUD operations and REST endpoints.</p>
                     </div>
 
