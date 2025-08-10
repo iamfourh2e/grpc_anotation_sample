@@ -46,7 +46,6 @@ func StartGRPCServer(port string) error {
 	grpcServer := grpc.NewServer()
 pb.RegisterAuthorServiceServer(grpcServer, services.NewAuthorService())
 pb.RegisterCategoryServiceServer(grpcServer, services.NewCategoryService())
-pb.RegisterPostServiceServer(grpcServer, services.NewPostService())
 	pb.RegisterBookServiceServer(grpcServer, services.NewBookService(client, dbName))
 
 	pb.RegisterTodoServiceServer(grpcServer, services.NewTodoService())
