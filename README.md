@@ -19,11 +19,12 @@ The script auto-detects your module name from `go.mod` and sets `option go_packa
 ### Repeated Fields and Types
 
 - Repeated fields are supported in two styles:
-  - name:repeated type
-  - repeated type name
-- Examples:
-  - `favorites:repeated string`
-  - `repeated UserRef followers`
+  - name:type style:
+    - favorites:repeated string
+    - followers:repeated UserRef
+  - natural style:
+    - repeated string favorites
+    - repeated UserRef followers
 
 ### Type Normalization
 
@@ -31,6 +32,26 @@ The generator and UI normalize common types:
 - Scalars kept lowercase: `string`, `bool`, `bytes`, `int32`, `int64`, `float`, `double`, etc.
 - `timestamp` or `google.protobuf.timestamp` → `google.protobuf.Timestamp` and auto-imports `google/protobuf/timestamp.proto`.
 - Custom message types are normalized to PascalCase first letter (e.g., `userRef` → `UserRef`).
+
+## Generated Files
+
+For each service, the script creates:
+
+1. **proto/{service}.proto** - Protocol buffer definitions with HTTP annotations
+2. **services/{service}.go** - Go service stub implementing the gRPC interface
+3. **models/{service}.go** - Go model with MongoDB/JSON tags and conversion methods
+4. **Auto-registration** in `server/grpc.go` and `server/gateway.go`
+
+### Model Features
+
+The generated model includes:
+- Struct with proper JSON/BSON tags
+- Constructor with MongoDB ObjectID generation
+- `ToProto()` method to convert model → protobuf
+- `FromProto()` method to convert protobuf → model
+- `CollectionName()` method for MongoDB collection name
+- Automatic timestamp handling for `google.protobuf.Timestamp` fields
+- Support for repeated fields (slices)
 
 ## Makefile
 
@@ -64,6 +85,7 @@ go run server.go
 proto/     # .proto files (one per service)
 pb/        # Generated protobuf, gRPC, gateway, swagger
 services/  # Go service stubs implementing servers
+models/    # Go models with MongoDB/JSON tags and conversion methods
 server/    # gRPC server and HTTP gateway wiring
 cmd/       # Server entrypoint
 ui/        # Local UI for service management
@@ -87,3 +109,4 @@ make proto
 - Ensure the script is executable: `chmod +x gen_service.sh`
 - The generator uses `go.mod` module name for proto `go_package` and imports
 - Registrations are automatically added/removed in `server/grpc.go` and `server/gateway.go`
+- Models include MongoDB ObjectID generation and proper timestamp handling

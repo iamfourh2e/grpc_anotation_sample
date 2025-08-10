@@ -43,6 +43,15 @@ if [ "$1" = "remove" ]; then
     echo "Go service file not found: $GO_FILE"
   fi
 
+  # Remove model file
+  MODEL_FILE="models/${SERVICE_NAME_LC}.go"
+  if [ -f "$MODEL_FILE" ]; then
+    rm "$MODEL_FILE"
+    echo "Removed model file: $MODEL_FILE"
+  else
+    echo "Model file not found: $MODEL_FILE"
+  fi
+
   # Remove registration from grpc.go
   GRPC_REG_REGEX="pb\\.Register${SERVICE_NAME}ServiceServer\\(grpcServer,[[:space:]]*services\\.New${SERVICE_NAME}Service\\([^)]*\\)\\)"
   if grep -E -q "$GRPC_REG_REGEX" "$GRPC_GO"; then
@@ -249,6 +258,242 @@ EOF
   echo "Created Go service stub: $GO_FILE"
 else
   echo "Go service stub already exists: $GO_FILE"
+fi
+
+# Generate model file
+MODEL_FILE="models/${SERVICE_NAME_LC}.go"
+if [ ! -f "$MODEL_FILE" ]; then
+cat > "$MODEL_FILE" <<EOF
+package models
+
+import (
+	"time"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"${MODULE_PATH}/pb"
+)
+
+// ${SERVICE_NAME} represents the ${SERVICE_NAME_LC} entity in the database
+type ${SERVICE_NAME} struct {
+	ID        string    \`json:"id" bson:"_id"\`
+EOF
+
+# Add fields to model struct
+FIELD_NUM=2
+IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
+for FIELD in "${FIELDS[@]}"; do
+  RAW_TRIMMED="$(echo "$FIELD" | xargs)"
+  [ -z "$RAW_TRIMMED" ] && continue
+
+  NAME=""
+  TYPE_RAW=""
+  IS_REPEATED=0
+
+  if [[ "$RAW_TRIMMED" == *:* ]]; then
+    NAME="$(echo "$RAW_TRIMMED" | cut -d: -f1 | xargs)"
+    TYPE_RAW="$(echo "$RAW_TRIMMED" | cut -d: -f2- | xargs)"
+    case "$TYPE_RAW" in
+      repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#repeated }"
+        ;;
+      Repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#Repeated }"
+        ;;
+    esac
+  else
+    if [[ "$RAW_TRIMMED" =~ ^[Rr]epeated[[:space:]]+([^[:space:]]+)[[:space:]]+([a-z][A-Za-z0-9_]*)$ ]]; then
+      IS_REPEATED=1
+      TYPE_RAW="${BASH_REMATCH[1]}"
+      NAME="${BASH_REMATCH[2]}"
+    fi
+  fi
+
+  TYPE_NORM="$(normalize_type "$TYPE_RAW")"
+  
+  # Map proto types to Go types
+  GO_TYPE=""
+  case "$TYPE_NORM" in
+    string) GO_TYPE="string" ;;
+    int32) GO_TYPE="int32" ;;
+    int64) GO_TYPE="int64" ;;
+    bool) GO_TYPE="bool" ;;
+    float) GO_TYPE="float32" ;;
+    double) GO_TYPE="float64" ;;
+    bytes) GO_TYPE="[]byte" ;;
+    google.protobuf.Timestamp) GO_TYPE="time.Time" ;;
+    *) GO_TYPE="string" ;; # Default to string for custom types
+  esac
+  
+  if [ $IS_REPEATED -eq 1 ]; then
+    if [ "$GO_TYPE" = "string" ]; then
+      GO_TYPE="[]string"
+    else
+      GO_TYPE="[]$GO_TYPE"
+    fi
+  fi
+  
+  # Capitalize field name for Go struct
+  FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+  echo "	${FIELD_NAME} ${GO_TYPE} \`json:\"${NAME}\" bson:\"${NAME}\"\`" >> "$MODEL_FILE"
+done
+
+cat >> "$MODEL_FILE" <<EOF
+	CreatedAt time.Time \`json:"created_at" bson:"created_at"\`
+	UpdatedAt time.Time \`json:"updated_at" bson:"updated_at"\`
+}
+
+// New${SERVICE_NAME} creates a new ${SERVICE_NAME} instance with default values
+func New${SERVICE_NAME}() *${SERVICE_NAME} {
+	return &${SERVICE_NAME}{
+		ID:        primitive.NewObjectID().Hex(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+}
+
+// ToProto converts the model to a protobuf message
+func (m *${SERVICE_NAME}) ToProto() *pb.${SERVICE_NAME} {
+	proto := &pb.${SERVICE_NAME}{
+		Id: m.ID,
+EOF
+
+# Add field mappings for ToProto
+FIELD_NUM=2
+IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
+for FIELD in "${FIELDS[@]}"; do
+  RAW_TRIMMED="$(echo "$FIELD" | xargs)"
+  [ -z "$RAW_TRIMMED" ] && continue
+
+  NAME=""
+  TYPE_RAW=""
+  IS_REPEATED=0
+
+  if [[ "$RAW_TRIMMED" == *:* ]]; then
+    NAME="$(echo "$RAW_TRIMMED" | cut -d: -f1 | xargs)"
+    TYPE_RAW="$(echo "$RAW_TRIMMED" | cut -d: -f2- | xargs)"
+    case "$TYPE_RAW" in
+      repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#repeated }"
+        ;;
+      Repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#Repeated }"
+        ;;
+    esac
+  else
+    if [[ "$RAW_TRIMMED" =~ ^[Rr]epeated[[:space:]]+([^[:space:]]+)[[:space:]]+([a-z][A-Za-z0-9_]*)$ ]]; then
+      IS_REPEATED=1
+      TYPE_RAW="${BASH_REMATCH[1]}"
+      NAME="${BASH_REMATCH[2]}"
+    fi
+  fi
+
+  TYPE_NORM="$(normalize_type "$TYPE_RAW")"
+  
+  # Generate field mapping
+  if [ $IS_REPEATED -eq 1 ]; then
+    FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+    echo "		${FIELD_NAME}: m.${FIELD_NAME}," >> "$MODEL_FILE"
+  else
+    case "$TYPE_NORM" in
+      google.protobuf.Timestamp)
+        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        echo "		${FIELD_NAME}: timestamppb.New(m.${FIELD_NAME})," >> "$MODEL_FILE"
+        ;;
+      *)
+        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        echo "		${FIELD_NAME}: m.${FIELD_NAME}," >> "$MODEL_FILE"
+        ;;
+    esac
+  fi
+done
+
+cat >> "$MODEL_FILE" <<EOF
+	}
+	return proto
+}
+
+// FromProto creates a model from a protobuf message
+func ${SERVICE_NAME}FromProto(p *pb.${SERVICE_NAME}) *${SERVICE_NAME} {
+	if p == nil {
+		return nil
+	}
+	
+	m := &${SERVICE_NAME}{
+		ID:        p.Id,
+EOF
+
+# Add field mappings for FromProto
+FIELD_NUM=2
+IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
+for FIELD in "${FIELDS[@]}"; do
+  RAW_TRIMMED="$(echo "$FIELD" | xargs)"
+  [ -z "$RAW_TRIMMED" ] && continue
+
+  NAME=""
+  TYPE_RAW=""
+  IS_REPEATED=0
+
+  if [[ "$RAW_TRIMMED" == *:* ]]; then
+    NAME="$(echo "$RAW_TRIMMED" | cut -d: -f1 | xargs)"
+    TYPE_RAW="$(echo "$RAW_TRIMMED" | cut -d: -f2- | xargs)"
+    case "$TYPE_RAW" in
+      repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#repeated }"
+        ;;
+      Repeated\ *)
+        IS_REPEATED=1
+        TYPE_RAW="${TYPE_RAW#Repeated }"
+        ;;
+    esac
+  else
+    if [[ "$RAW_TRIMMED" =~ ^[Rr]epeated[[:space:]]+([^[:space:]]+)[[:space:]]+([a-z][A-Za-z0-9_]*)$ ]]; then
+      IS_REPEATED=1
+      TYPE_RAW="${BASH_REMATCH[1]}"
+      NAME="${BASH_REMATCH[2]}"
+    fi
+  fi
+
+  TYPE_NORM="$(normalize_type "$TYPE_RAW")"
+  
+  # Generate field mapping
+  if [ $IS_REPEATED -eq 1 ]; then
+    FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+    echo "		${FIELD_NAME}: p.${FIELD_NAME}," >> "$MODEL_FILE"
+  else
+    case "$TYPE_NORM" in
+      google.protobuf.Timestamp)
+        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        echo "		${FIELD_NAME}: p.Get${FIELD_NAME}().AsTime()," >> "$MODEL_FILE"
+        ;;
+      *)
+        FIELD_NAME="$(echo "$NAME" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
+        echo "		${FIELD_NAME}: p.${FIELD_NAME}," >> "$MODEL_FILE"
+        ;;
+    esac
+  fi
+done
+
+cat >> "$MODEL_FILE" <<EOF
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	
+	return m
+}
+
+// CollectionName returns the MongoDB collection name for this model
+func (${SERVICE_NAME}) CollectionName() string {
+	return "${SERVICE_NAME_LC}s"
+}
+EOF
+  echo "Created model file: $MODEL_FILE"
+else
+  echo "Model file already exists: $MODEL_FILE"
 fi
 
 # Register in server/grpc.go
