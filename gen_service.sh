@@ -12,6 +12,84 @@ if [ -z "$MODULE_PATH" ]; then
   exit 1
 fi
 
+# Helper function to pluralize service names
+pluralize() {
+  local word="$1"
+  local last_char="${word: -1}"
+  local second_last_char="${word: -2:1}"
+  
+  # Handle special cases
+  case "$word" in
+    Story) echo "Stories" ;;
+    Category) echo "Categories" ;;
+    Country) echo "Countries" ;;
+    City) echo "Cities" ;;
+    Family) echo "Families" ;;
+    Company) echo "Companies" ;;
+    Baby) echo "Babies" ;;
+    Lady) echo "Ladies" ;;
+    Party) echo "Parties" ;;
+    Study) echo "Studies" ;;
+    Theory) echo "Theories" ;;
+    History) echo "Histories" ;;
+    Mystery) echo "Mysteries" ;;
+    Discovery) echo "Discoveries" ;;
+    Library) echo "Libraries" ;;
+    Factory) echo "Factories" ;;
+    Memory) echo "Memories" ;;
+    Victory) echo "Victories" ;;
+    Century) echo "Centuries" ;;
+    Gallery) echo "Galleries" ;;
+    Salary) echo "Salaries" ;;
+    Boundary) echo "Boundaries" ;;
+    Commentary) echo "Commentaries" ;;
+    Dictionary) echo "Dictionaries" ;;
+    Laboratory) echo "Laboratories" ;;
+    Necessary) echo "Necessaries" ;;
+    Primary) echo "Primaries" ;;
+    Secondary) echo "Secondaries" ;;
+    Temporary) echo "Temporaries" ;;
+    Voluntary) echo "Voluntaries" ;;
+    # Words ending in 'y' preceded by a consonant -> 'ies'
+    *y)
+      if [[ ! "$second_last_char" =~ [aeiou] ]]; then
+        echo "${word%y}ies"
+      else
+        echo "${word}s"
+      fi
+      ;;
+    # Words ending in 's', 'sh', 'ch', 'x', 'z' -> 'es'
+    *s|*sh|*ch|*x|*z)
+      echo "${word}es"
+      ;;
+    # Words ending in 'f' or 'fe' -> 'ves' (common cases)
+    *f)
+      case "$word" in
+        Leaf|Life|Knife|Wolf|Calf|Half|Self|Shelf|Thief|Wife)
+          echo "${word%f}ves"
+          ;;
+        *)
+          echo "${word}s"
+          ;;
+      esac
+      ;;
+    *fe)
+      case "$word" in
+        Life|Knife|Wife)
+          echo "${word%fe}ves"
+          ;;
+        *)
+          echo "${word}s"
+          ;;
+      esac
+      ;;
+    # Default: just add 's'
+    *)
+      echo "${word}s"
+      ;;
+  esac
+}
+
 if [ "$1" = "remove" ]; then
   if [ -z "$2" ]; then
     echo "Usage: $0 remove ServiceName"
@@ -86,6 +164,9 @@ FIELDS_RAW="$2"
 SERVICE_NAME="$(echo "$SERVICE_NAME_RAW" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')"
 # lower_snake_case for file name
 SERVICE_NAME_LC="$(echo "$SERVICE_NAME_RAW" | tr '[:upper:]' '[:lower:]')"
+# Properly pluralized service name for routes and collection names
+SERVICE_NAME_PLURAL="$(pluralize "$SERVICE_NAME")"
+SERVICE_NAME_LC_PLURAL="$(echo "$SERVICE_NAME_PLURAL" | tr '[:upper:]' '[:lower:]')"
 PROTO_FILE="proto/${SERVICE_NAME_LC}.proto"
 GO_FILE="services/${SERVICE_NAME_LC}.go"
 
@@ -192,26 +273,26 @@ echo "message Update${SERVICE_NAME}Request { ${SERVICE_NAME} data = 1; }" >> "$P
 echo "message Update${SERVICE_NAME}Response { ${SERVICE_NAME} data = 1; }" >> "$PROTO_FILE"
 echo "message Delete${SERVICE_NAME}Request { string id = 1; }" >> "$PROTO_FILE"
 echo "message Delete${SERVICE_NAME}Response { bool success = 1; }" >> "$PROTO_FILE"
-echo "message List${SERVICE_NAME}sRequest {}" >> "$PROTO_FILE"
-echo "message List${SERVICE_NAME}sResponse { repeated ${SERVICE_NAME} data = 1; }" >> "$PROTO_FILE"
+echo "message List${SERVICE_NAME_PLURAL}Request {}" >> "$PROTO_FILE"
+echo "message List${SERVICE_NAME_PLURAL}Response { repeated ${SERVICE_NAME} data = 1; }" >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
 
 # Service definition
 echo "service ${SERVICE_NAME}Service {" >> "$PROTO_FILE"
 echo "  rpc Create${SERVICE_NAME}(Create${SERVICE_NAME}Request) returns (Create${SERVICE_NAME}Response) {" >> "$PROTO_FILE"
-echo "    option (google.api.http) = { post: \"/v1/${SERVICE_NAME_LC}s\" body: \"*\" };" >> "$PROTO_FILE"
+echo "    option (google.api.http) = { post: \"/v1/${SERVICE_NAME_LC_PLURAL}\" body: \"*\" };" >> "$PROTO_FILE"
 echo "  }" >> "$PROTO_FILE"
 echo "  rpc Get${SERVICE_NAME}(Get${SERVICE_NAME}Request) returns (Get${SERVICE_NAME}Response) {" >> "$PROTO_FILE"
-echo "    option (google.api.http) = { get: \"/v1/${SERVICE_NAME_LC}s/{id}\" };" >> "$PROTO_FILE"
+echo "    option (google.api.http) = { get: \"/v1/${SERVICE_NAME_LC_PLURAL}/{id}\" };" >> "$PROTO_FILE"
 echo "  }" >> "$PROTO_FILE"
 echo "  rpc Update${SERVICE_NAME}(Update${SERVICE_NAME}Request) returns (Update${SERVICE_NAME}Response) {" >> "$PROTO_FILE"
-echo "    option (google.api.http) = { put: \"/v1/${SERVICE_NAME_LC}s/{data.id}\" body: \"*\" };" >> "$PROTO_FILE"
+echo "    option (google.api.http) = { put: \"/v1/${SERVICE_NAME_LC_PLURAL}/{data.id}\" body: \"*\" };" >> "$PROTO_FILE"
 echo "  }" >> "$PROTO_FILE"
 echo "  rpc Delete${SERVICE_NAME}(Delete${SERVICE_NAME}Request) returns (Delete${SERVICE_NAME}Response) {" >> "$PROTO_FILE"
-echo "    option (google.api.http) = { delete: \"/v1/${SERVICE_NAME_LC}s/{id}\" };" >> "$PROTO_FILE"
+echo "    option (google.api.http) = { delete: \"/v1/${SERVICE_NAME_LC_PLURAL}/{id}\" };" >> "$PROTO_FILE"
 echo "  }" >> "$PROTO_FILE"
-echo "  rpc List${SERVICE_NAME}s(List${SERVICE_NAME}sRequest) returns (List${SERVICE_NAME}sResponse) {" >> "$PROTO_FILE"
-echo "    option (google.api.http) = { get: \"/v1/${SERVICE_NAME_LC}s\" };" >> "$PROTO_FILE"
+echo "  rpc List${SERVICE_NAME_PLURAL}(List${SERVICE_NAME_PLURAL}Request) returns (List${SERVICE_NAME_PLURAL}Response) {" >> "$PROTO_FILE"
+echo "    option (google.api.http) = { get: \"/v1/${SERVICE_NAME_LC_PLURAL}\" };" >> "$PROTO_FILE"
 echo "  }" >> "$PROTO_FILE"
 echo "}" >> "$PROTO_FILE"
 echo '' >> "$PROTO_FILE"
@@ -251,8 +332,8 @@ func (s *${SERVICE_NAME}Service) Delete${SERVICE_NAME}(ctx context.Context, req 
 	return &pb.Delete${SERVICE_NAME}Response{}, nil
 }
 
-func (s *${SERVICE_NAME}Service) List${SERVICE_NAME}s(ctx context.Context, req *pb.List${SERVICE_NAME}sRequest) (*pb.List${SERVICE_NAME}sResponse, error) {
-	return &pb.List${SERVICE_NAME}sResponse{}, nil
+func (s *${SERVICE_NAME}Service) List${SERVICE_NAME_PLURAL}(ctx context.Context, req *pb.List${SERVICE_NAME_PLURAL}Request) (*pb.List${SERVICE_NAME_PLURAL}Response, error) {
+	return &pb.List${SERVICE_NAME_PLURAL}Response{}, nil
 }
 EOF
   echo "Created Go service stub: $GO_FILE"
@@ -488,7 +569,7 @@ cat >> "$MODEL_FILE" <<EOF
 
 // CollectionName returns the MongoDB collection name for this model
 func (${SERVICE_NAME}) CollectionName() string {
-	return "${SERVICE_NAME_LC}s"
+	return "${SERVICE_NAME_LC_PLURAL}"
 }
 EOF
   echo "Created model file: $MODEL_FILE"

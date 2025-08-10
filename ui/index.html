@@ -240,6 +240,201 @@
             border-radius: 4px;
             font-family: 'Courier New', monospace;
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            max-width: 90%;
+            width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            z-index: 1001;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.4rem;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .detail-section {
+            margin-bottom: 25px;
+        }
+
+        .detail-section h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .detail-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .detail-item strong {
+            display: block;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detail-item span {
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            position: relative;
+            margin: 15px 0;
+        }
+
+        .code-block-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #4a5568;
+        }
+
+        .code-block-title {
+            color: #a0aec0;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .copy-btn {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #2d3748;
+        }
+
+        .copy-btn.copied {
+            background: #48bb78;
+        }
+
+        .endpoint-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .endpoint-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .endpoint-item:last-child {
+            border-bottom: none;
+        }
+
+        .endpoint-method {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-right: 15px;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .endpoint-method.get { background: #48bb78; }
+        .endpoint-method.post { background: #667eea; }
+        .endpoint-method.put { background: #ed8936; }
+        .endpoint-method.delete { background: #f56565; }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            color: #333;
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -295,6 +490,113 @@
                     <div class="loading">
                         <div class="spinner"></div>
                         <p>Loading services...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="service-details-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Service Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-section">
+                    <h4>Service Name</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <strong>Name:</strong> <span id="modal-service-name"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <h4>Files Created</h4>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">proto</span>
+                            <button class="copy-btn" onclick="copyText('proto/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '.proto')">Copy</button>
+                        </div>
+                        <span id="modal-proto-path"></span>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">services</span>
+                            <button class="copy-btn" onclick="copyText('services/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '.go')">Copy</button>
+                        </div>
+                        <span id="modal-services-path"></span>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">models</span>
+                            <button class="copy-btn" onclick="copyText('models/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '.go')">Copy</button>
+                        </div>
+                        <span id="modal-models-path"></span>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">pb</span>
+                            <button class="copy-btn" onclick="copyText('pb/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '.pb.go')">Copy</button>
+                        </div>
+                        <span id="modal-pb-path"></span>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">pb (grpc)</span>
+                            <button class="copy-btn" onclick="copyText('pb/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '_grpc.pb.go')">Copy</button>
+                        </div>
+                        <span id="modal-pb-grpc-path"></span>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">pb (gateway)</span>
+                            <button class="copy-btn" onclick="copyText('pb/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '.pb.gw.go')">Copy</button>
+                        </div>
+                        <span id="modal-pb-gw-path"></span>
+                    </div>
+                    <div class="code-block">
+                        <div class="code-block-header">
+                            <span class="code-block-title">swagger</span>
+                            <button class="copy-btn" onclick="copyText('pb/' + document.getElementById('modal-service-name').textContent.toLowerCase() + '.swagger.json')">Copy</button>
+                        </div>
+                        <span id="modal-swagger-path"></span>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <h4>REST Endpoints</h4>
+                    <ul class="endpoint-list">
+                        <li class="endpoint-item">
+                            <span class="endpoint-method post">POST</span>
+                            <span class="endpoint-path">/v1/<span id="modal-rest-create-path"></span>s</span>
+                            <button class="copy-btn" onclick="copyText('/v1/' + document.getElementById('modal-rest-create-path').textContent + 's')">Copy</button>
+                        </li>
+                        <li class="endpoint-item">
+                            <span class="endpoint-method get">GET</span>
+                            <span class="endpoint-path">/v1/<span id="modal-rest-list-path"></span>s/{id}</span>
+                            <button class="copy-btn" onclick="copyText('/v1/' + document.getElementById('modal-rest-list-path').textContent + 's/{id}')">Copy</button>
+                        </li>
+                        <li class="endpoint-item">
+                            <span class="endpoint-method put">PUT</span>
+                            <span class="endpoint-path">/v1/<span id="modal-rest-update-path"></span>s/{id}</span>
+                            <button class="copy-btn" onclick="copyText('/v1/' + document.getElementById('modal-rest-update-path').textContent + 's/{id}')">Copy</button>
+                        </li>
+                        <li class="endpoint-item">
+                            <span class="endpoint-method delete">DELETE</span>
+                            <span class="endpoint-path">/v1/<span id="modal-rest-delete-path"></span>s/{id}</span>
+                            <button class="copy-btn" onclick="copyText('/v1/' + document.getElementById('modal-rest-delete-path').textContent + 's/{id}')">Copy</button>
+                        </li>
+                        <li class="endpoint-item">
+                            <span class="endpoint-method get">GET</span>
+                            <span class="endpoint-path">/v1/<span id="modal-rest-get-all-path"></span>s</span>
+                            <button class="copy-btn" onclick="copyText('/v1/' + document.getElementById('modal-rest-get-all-path').textContent + 's')">Copy</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="detail-section">
+                    <h4>Fields</h4>
+                    <div id="modal-fields-container">
+                        <!-- Fields will be populated dynamically -->
                     </div>
                 </div>
             </div>
@@ -517,27 +819,44 @@
             const service = services.find(s => s.name === serviceName);
             if (!service) return;
 
-            const details = `
-Service: ${service.name}
-Files Created:
-- proto/${service.name.toLowerCase()}.proto
-- services/${service.name.toLowerCase()}.go
-- pb/${service.name.toLowerCase()}_grpc.pb.go
-- pb/${service.name.toLowerCase()}.pb.go
-- pb/${service.name.toLowerCase()}.pb.gw.go
-- pb/${service.name.toLowerCase()}.swagger.json
+            document.getElementById('modal-service-name').textContent = service.name;
+            document.getElementById('modal-proto-path').textContent = `proto/${service.name.toLowerCase()}.proto`;
+            document.getElementById('modal-services-path').textContent = `services/${service.name.toLowerCase()}.go`;
+            document.getElementById('modal-models-path').textContent = `models/${service.name.toLowerCase()}.go`;
+            document.getElementById('modal-pb-path').textContent = `pb/${service.name.toLowerCase()}.pb.go`;
+            document.getElementById('modal-pb-grpc-path').textContent = `pb/${service.name.toLowerCase()}_grpc.pb.go`;
+            document.getElementById('modal-pb-gw-path').textContent = `pb/${service.name.toLowerCase()}.pb.gw.go`;
+            document.getElementById('modal-swagger-path').textContent = `pb/${service.name.toLowerCase()}.swagger.json`;
 
-REST Endpoints:
-- POST /v1/${service.name.toLowerCase()}s
-- GET /v1/${service.name.toLowerCase()}s/{id}
-- PUT /v1/${service.name.toLowerCase()}s/{id}
-- DELETE /v1/${service.name.toLowerCase()}s/{id}
-- GET /v1/${service.name.toLowerCase()}s
+            document.getElementById('modal-rest-create-path').textContent = service.name.toLowerCase();
+            document.getElementById('modal-rest-list-path').textContent = service.name.toLowerCase();
+            document.getElementById('modal-rest-update-path').textContent = service.name.toLowerCase();
+            document.getElementById('modal-rest-delete-path').textContent = service.name.toLowerCase();
+            document.getElementById('modal-rest-get-all-path').textContent = service.name.toLowerCase();
 
-Fields: ${service.fields.join(', ')}
-            `;
+            // Clear previous fields
+            const fieldsContainer = document.getElementById('modal-fields-container');
+            fieldsContainer.innerHTML = '';
 
-            alert(details);
+            // Populate fields
+            if (service.fields && Array.isArray(service.fields)) {
+                service.fields.forEach(field => {
+                    const fieldDiv = document.createElement('div');
+                    fieldDiv.className = 'detail-item';
+                    fieldDiv.innerHTML = `
+                        <strong>Field:</strong> <span>${field}</span>
+                    `;
+                    fieldsContainer.appendChild(fieldDiv);
+                });
+            } else {
+                // Fallback: display as comma-separated string
+                const fieldDiv = document.createElement('div');
+                fieldDiv.className = 'detail-item';
+                fieldDiv.innerHTML = `<strong>Fields:</strong> <span>${service.fields || 'No fields'}</span>`;
+                fieldsContainer.appendChild(fieldDiv);
+            }
+
+            openModal();
         }
 
         function refreshServices() {
@@ -568,6 +887,65 @@ Fields: ${service.fields.join(', ')}
 
         // Auto-refresh services every 30 seconds
         setInterval(loadServices, 30000);
+
+        // Modal Functions
+        function openModal() {
+            document.getElementById('service-details-modal').style.display = 'block';
+            // Add keyboard listener for Escape key
+            document.addEventListener('keydown', handleKeyDown);
+        }
+
+        function closeModal() {
+            document.getElementById('service-details-modal').style.display = 'none';
+            // Remove keyboard listener
+            document.removeEventListener('keydown', handleKeyDown);
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        }
+
+        // Close modal when clicking outside the modal
+        window.onclick = function(event) {
+            const modal = document.getElementById('service-details-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+
+        // Copy text to clipboard
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                const copyBtn = event.target;
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Could not copy text: ', err);
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                
+                const copyBtn = event.target;
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                copyBtn.classList.add('copied');
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.classList.remove('copied');
+                }, 2000);
+            });
+        }
     </script>
 </body>
 </html> 
