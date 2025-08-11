@@ -32,26 +32,9 @@ func StartGatewayServer(grpcPort, gatewayAddress string) error {
 		return err
 	}
 
-	if err = pb.RegisterTestserviceServiceHandler(ctx, mux, conn); err != nil {
-		return err
-	}
-
-
 	if err = pb.RegisterCategoryServiceHandler(ctx, mux, conn); err != nil {
 		return err
 	}
-
-
-
-
-
-
-	if err = pb.RegisterAuthorServiceHandler(ctx, mux, conn); err != nil {
-		return err
-	}
-
-
-
 
 
 	if err = pb.RegisterTodoServiceHandler(ctx, mux, conn); err != nil {
