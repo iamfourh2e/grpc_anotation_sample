@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package pb;
+
+import "google/api/annotations.proto";
+option go_package = "grpc_anotation_sample/pb";
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  float price = 4;
+  int32 stock = 5;
+  repeated string categories = 6;
+
+}
+
+message CreateProductRequest { Product data = 1; }
+message CreateProductResponse { Product data = 1; }
+message GetProductRequest { string id = 1; }
+message GetProductResponse { Product data = 1; }
+message UpdateProductRequest { Product data = 1; }
+message UpdateProductResponse { Product data = 1; }
+message DeleteProductRequest { string id = 1; }
+message DeleteProductResponse { bool success = 1; }
+message ListProductsRequest {}
+message ListProductsResponse { repeated Product data = 1; }
+
+service ProductService {
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse) {
+    option (google.api.http) = { post: "/v1/products" body: "*" };
+  }
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse) {
+    option (google.api.http) = { get: "/v1/products/{id}" };
+  }
+  rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse) {
+    option (google.api.http) = { put: "/v1/products/{data.id}" body: "*" };
+  }
+  rpc DeleteProduct(DeleteProductRequest) returns (DeleteProductResponse) {
+    option (google.api.http) = { delete: "/v1/products/{id}" };
+  }
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse) {
+    option (google.api.http) = { get: "/v1/products" };
+  }
+}
+

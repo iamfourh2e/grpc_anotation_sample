@@ -88,6 +88,52 @@ go run server.go
 - Remove services with one click
 - The UI accepts both repeated syntaxes and normalizes types before sending to the API
 
+## MCP Server: Claude for Desktop Integration
+
+An MCP (Model Context Protocol) server is available for seamless integration with Claude for Desktop and other MCP clients.
+
+### Setup
+
+```bash
+# Install dependencies and setup the MCP server
+./setup_mcp.sh
+```
+
+### Configure Claude for Desktop
+
+Add the following to your Claude for Desktop configuration:
+`~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "grpc-manager": {
+      "command": "python3",
+      "args": [
+        "/path/to/your/project/mcp_server.py"
+      ]
+    }
+  }
+}
+```
+
+### Available Tools
+
+- **list_services**: List all existing gRPC services
+- **generate_service**: Create a new gRPC service with specified fields
+- **remove_service**: Remove a gRPC service and all its files
+- **regenerate_proto**: Regenerate protocol buffer files
+- **get_project_status**: Get project health and status
+- **get_service_help**: Get help and examples
+
+### Example Usage in Claude
+
+```
+Generate a User service with name, email, and age fields
+```
+
+For detailed documentation, see [MCP_README.md](MCP_README.md).
+
 ## Project Structure
 
 ```
@@ -98,6 +144,10 @@ models/    # Go models with MongoDB/JSON tags and conversion methods
 server/    # gRPC server and HTTP gateway wiring
 cmd/       # Server entrypoint
 ui/        # Local UI for service management
+mcp_server.py          # MCP server for Claude for Desktop integration
+setup_mcp.sh           # MCP server setup script
+requirements.txt       # Python dependencies for MCP server
+MCP_README.md          # Detailed MCP server documentation
 ```
 
 ## Examples

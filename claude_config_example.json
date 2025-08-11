@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "grpc-manager": {
+      "command": "python3",
+      "args": [
+        "/Users/kein/Desktop/go_project/grpc_anotation_sample/mcp_server.py"
+      ]
+    }
+  }
+}
