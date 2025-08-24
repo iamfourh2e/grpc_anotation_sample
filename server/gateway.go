@@ -36,7 +36,6 @@ func StartGatewayServer(grpcPort, gatewayAddress string) error {
 		return err
 	}
 
-
 	if err = pb.RegisterTodoServiceHandler(ctx, mux, conn); err != nil {
 		return err
 	}
