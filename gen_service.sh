@@ -179,7 +179,7 @@ normalize_type() {
       echo "$tlc"
       return 0
       ;;
-    timestamp)
+    timestamp|datetime|date)
       echo "google.protobuf.Timestamp"
       return 0
       ;;
