@@ -3,13 +3,27 @@
 This project demonstrates generating gRPC services with HTTP/REST gateway and a helper UI to create/remove services quickly.
 
 ## Quick Start
+
+### For Fresh Projects
+
+If you're starting a new project with a custom name:
+
+```bash
+git clone https://github.com/iamfourh2e/grpc_anotation_sample
+cd grpc_anotation_sample
+
+# Initialize fresh project with your custom name
+make init-project PROJECT_NAME=my-pos-system
+
+# Or just rename without removing git history
+make rename-project NEW_NAME=my-pos-system
+```
+
+### For Development/Testing
+
 ```bash
 git clone https://github.com/iamfourh2e/grpc_anotation_sample && cd grpc_anotation_sample
-```
-```bash
 rm -rf .git
-```
-```bash
 make dev
 ```
 
@@ -67,11 +81,25 @@ The generated model includes:
 Useful targets:
 
 ```bash
+# Project Setup
+make help                              # Show all available commands
+make init-project PROJECT_NAME=name   # Initialize fresh project with new name
+make rename-project NEW_NAME=name     # Rename existing project
+
+# Development
 make proto   # Generate pb code, grpc, gateway, and swagger from proto/
 make build   # Build server binary into tmp/main
 make run     # Build and run server
+make dev     # Run with live reload (requires air)
 make test    # Run tests
+
+# UI Management
 make ui      # Start the gRPC Service Manager UI (http://localhost:8081)
+make ui-build # Build UI binary
+make ui-clean # Clean UI build artifacts
+
+# Cleanup
+make clean   # Remove generated files
 ```
 
 ## UI: gRPC Service Manager
