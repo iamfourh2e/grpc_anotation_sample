@@ -170,6 +170,44 @@ class ServiceManager:
         except Exception as e:
             logger.error(f"Error adding RPC: {e}")
             return {"success": False, "error": str(e)}
+
+    async def add_nested(
+        self,
+        service_name: str,
+        field_name: str,
+        fields: str,
+        repeated: bool = False,
+        message_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Add a nested message and field to a service using gen_service.sh add-nested"""
+        try:
+            cmd = [
+                str(self.gen_script),
+                "add-nested",
+                service_name,
+                field_name,
+                fields,
+            ]
+            if repeated:
+                cmd.append("repeated")
+            if message_name:
+                cmd.append(message_name)
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
+            )
+
+            if result.returncode != 0:
+                return {"success": False, "error": result.stderr, "output": result.stdout}
+
+            return {"success": True, "output": result.stdout, "service_name": service_name}
+
+        except Exception as e:
+            logger.error(f"Error adding nested: {e}")
+            return {"success": False, "error": str(e)}
     
     async def regenerate_proto(self) -> Dict[str, Any]:
         """Regenerate protocol buffer files"""
@@ -321,6 +359,33 @@ async def add_rpc(
         return f"Error adding RPC: {str(e)}"
 
 @mcp.tool()
+async def add_nested(
+    service_name: str,
+    field_name: str,
+    fields: str,
+    repeated: bool = False,
+    message_name: Optional[str] = None,
+) -> str:
+    """Add a nested message and field to an existing service.
+
+    Args:
+        service_name: Target service (e.g., "Place")
+        field_name: Field name on main message (snake_case)
+        fields: Nested fields (e.g., "type:string,coordinates:repeated double")
+        repeated: Whether the nested field is repeated on the main message
+        message_name: Optional override for nested message name
+    """
+    try:
+        result = await service_manager.add_nested(service_name, field_name, fields, repeated, message_name)
+        if result["success"]:
+            return f"✅ Nested '{field_name}' added to service '{service_name}' successfully!\n\n{result['output']}"
+        else:
+            return f"❌ Failed to add nested to '{service_name}':\n\n{result['error']}"
+    except Exception as e:
+        logger.error(f"Error adding nested: {e}")
+        return f"Error adding nested: {str(e)}"
+
+@mcp.tool()
 async def remove_service(service_name: str) -> str:
     """Remove a gRPC service and all its associated files.
     
@@ -448,6 +513,12 @@ generate_service("Order", "user_id:string,items:repeated string,total:float,stat
 ```
 add_rpc("Action", "SearchActions", "query:string,limit:int32", "data:repeated Action", "GET:/v1/actions:search")
 add_rpc("Order", "UpsertOrder", "data:Order", "data:Order", "PUT:/v1/orders/{data.id}", "*")
+```
+
+### Add Nested Message
+```
+add_nested("Place", "location", "type:string,coordinates:repeated double")
+add_nested("Event", "occurred_at", "tz:string,when:timestamp", False, "OccurredAt")
 ```
 
 ## Generated Files
