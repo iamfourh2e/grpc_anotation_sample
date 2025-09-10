@@ -205,3 +205,153 @@ make proto
 - The generator uses `go.mod` module name for proto `go_package` and imports
 - Registrations are automatically added/removed in `server/grpc.go` and `server/gateway.go`
 - Models include MongoDB ObjectID generation and proper timestamp handling
+
+## RPCs and Nested Fields
+
+### Conventions
+- **Message naming**: Always use `Request`/`Response` suffixes (e.g., `CreateBookRequest`, `CreateBookResponse`).
+- **HTTP annotations**: Every RPC exposed via the gateway must have `google.api.http` options.
+- **Body mapping**: Use `body: "*"` for full request bodies or `body: "data"` when the payload is wrapped under `data`.
+- **Pagination**: Standard fields `page:int32`, `limit:int32` and the response includes `total:int64`, `page:int32`, `limit:int32`.
+- **Timestamps**: Use `google.protobuf.Timestamp` for datetime fields.
+- **IDs**: Strings backed by MongoDB `ObjectID` (generated in models).
+
+### Example: CRUD RPCs with HTTP Mappings
+```proto
+syntax = "proto3";
+package pb;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+option go_package = "grpc_anotation_sample/pb";
+
+message Thing {
+  string id = 1;
+  string name = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+message CreateThingRequest { Thing data = 1; }
+message CreateThingResponse { Thing data = 1; }
+message GetThingRequest { string id = 1; }
+message GetThingResponse { Thing data = 1; }
+message UpdateThingRequest { Thing data = 1; }
+message UpdateThingResponse { Thing data = 1; }
+message DeleteThingRequest { string id = 1; }
+message DeleteThingResponse { bool success = 1; }
+
+service ThingService {
+  rpc CreateThing(CreateThingRequest) returns (CreateThingResponse) {
+    option (google.api.http) = { post: "/v1/things" body: "*" };
+  }
+  rpc GetThing(GetThingRequest) returns (GetThingResponse) {
+    option (google.api.http) = { get: "/v1/things/{id}" };
+  }
+  rpc UpdateThing(UpdateThingRequest) returns (UpdateThingResponse) {
+    option (google.api.http) = { put: "/v1/things/{data.id}" body: "*" };
+  }
+  rpc DeleteThing(DeleteThingRequest) returns (DeleteThingResponse) {
+    option (google.api.http) = { delete: "/v1/things/{id}" };
+  }
+}
+```
+
+### Example: List and Search RPCs
+```proto
+message ListThingsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  string sort_by = 3;
+  string sort_order = 4; // asc|desc
+}
+message ListThingsResponse {
+  repeated Thing data = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+message SearchThingsRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+message SearchThingsResponse {
+  repeated Thing data = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 limit = 4;
+}
+
+service ThingService {
+  rpc ListThings(ListThingsRequest) returns (ListThingsResponse) {
+    option (google.api.http) = { get: "/v1/things" };
+  }
+  rpc SearchThings(SearchThingsRequest) returns (SearchThingsResponse) {
+    option (google.api.http) = { get: "/v1/things:search" };
+  }
+}
+```
+
+### Nested Fields
+Use nested messages to group related substructures, and reference them as fields on your main message.
+
+```proto
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+  string postal_code = 4;
+  string country = 5;
+}
+
+message Location {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message Place {
+  string id = 1;
+  string name = 2;
+  Address address = 3;            // single nested object
+  repeated Address branches = 4;   // repeated nested objects
+  Location location = 5;           // another nested object
+}
+```
+
+### grpc-manager Tooling: Creating RPCs and Nested Types
+- **Generate service**
+  - generate_service("Thing", "name:string,created_at:timestamp")
+- **Add RPCs**
+  - add_rpc("Thing", "CreateThing", "data:Thing", "data:Thing", "POST:/v1/things", "*")
+  - add_rpc("Thing", "GetThing", "id:string", "data:Thing", "GET:/v1/things/{id}")
+  - add_rpc("Thing", "UpdateThing", "data:Thing", "data:Thing", "PUT:/v1/things/{data.id}", "*")
+  - add_rpc("Thing", "DeleteThing", "id:string", "success:bool", "DELETE:/v1/things/{id}")
+  - add_rpc("Thing", "ListThings", "page:int32,limit:int32,sort_by:string,sort_order:string", "data:repeated Thing,total:int64,page:int32,limit:int32", "GET:/v1/things")
+  - add_rpc("Thing", "SearchThings", "query:string,page:int32,limit:int32", "data:repeated Thing,total:int64,page:int32,limit:int32", "GET:/v1/things:search")
+- **Add nested message and field**
+  - add_nested("Place", "address", "street:string,city:string,state:string,postal_code:string,country:string", false, "Address")
+  - add_nested("Place", "location", "latitude:double,longitude:double", false, "Location")
+- **Regenerate artifacts**
+  - regenerate_proto()
+
+### Model Conversion (Generated)
+- `models/{service}.go` includes `ToProto()` and `FromProto()` helpers for both root and nested types.
+- For repeated nested fields, conversions iterate slices to map between Go structs and protobuf messages.
+- Timestamp fields are converted to/from `time.Time` and `google.protobuf.Timestamp` automatically.
+
+### Testing RPCs and Nested Fields
+- Use `go test -v ./...` and prefer `testify` suite/assert.
+- For repository/integration tests, use a dedicated MongoDB test database set via environment variables.
+- Test cases should cover:
+  - Create/Read/Update/Delete flows
+  - Pagination edge cases (page=0/limit=0, large pages)
+  - Search filters and sorting
+  - Nested field round-trip (model → proto → model)
+  - Gateway routes and HTTP body mappings (e.g., `body: "*"` vs `body: "data"`)
+
+### Gotchas and Tips
+- If you see proto regeneration errors about duplicates, open the affected `proto/*.proto` and remove the duplicate RPC or message definitions, then run regeneration again.
+- Always ensure `option go_package` matches your module path (`grpc_anotation_sample/pb`).
+- Import `google/protobuf/timestamp.proto` when using `google.protobuf.Timestamp`.
+- After structural changes (new service/RPC/nested), always run `make proto`.

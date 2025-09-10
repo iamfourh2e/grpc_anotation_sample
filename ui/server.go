@@ -34,6 +34,8 @@ type ServicesResponse struct {
 func main() {
 	// Serve static files
 	http.HandleFunc("/", handleIndex)
+	http.HandleFunc("/docs", handleDocs)
+	http.HandleFunc("/api/readme", handleReadme)
 
 	// API endpoints
 	http.HandleFunc("/api/services", handleServices)
@@ -53,6 +55,11 @@ func main() {
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
+		// allow direct navigation to /docs
+		if r.URL.Path == "/docs" {
+			handleDocs(w, r)
+			return
+		}
 		http.NotFound(w, r)
 		return
 	}
@@ -66,6 +73,70 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
+	w.Write(content)
+}
+
+func handleDocs(w http.ResponseWriter, r *http.Request) {
+	// Minimal HTML shell that fetches README.md and renders as Markdown
+	html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Docs | gRPC Service Manager</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 0; background: #0b1220; color: #e5e7eb; }
+    header { position: sticky; top: 0; backdrop-filter: blur(8px); background: rgba(17,24,39,0.6); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 20px; }
+    a { color: #60a5fa; text-decoration: none; }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+    .content { background: #0f172a; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    pre { background: #0b1220; padding: 12px; border-radius: 8px; overflow: auto; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    h1, h2, h3, h4 { color: #f8fafc; }
+    ul { line-height: 1.7; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    async function load() {
+      const res = await fetch('/api/readme');
+      const text = await res.text();
+      const html = marked.parse(text, { mangle: false, headerIds: false });
+      document.getElementById('md').innerHTML = html;
+    }
+    window.addEventListener('DOMContentLoaded', load);
+  </script>
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <a href="/">← Back</a>
+      </div>
+    </header>
+    <div class="container">
+      <div id="md" class="content">Loading documentation…</div>
+    </div>
+  </body>
+  </html>`
+	w.Header().Set("Content-Type", "text/html")
+	w.Write([]byte(html))
+}
+
+func handleReadme(w http.ResponseWriter, _ *http.Request) {
+	// Prefer project root README; fallback to ui/README
+	candidates := []string{"../README.md", "README.md"}
+	var content []byte
+	var err error
+	for _, p := range candidates {
+		content, err = os.ReadFile(p)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		http.Error(w, "README not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write(content)
 }
 

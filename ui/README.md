@@ -218,3 +218,85 @@ To add new features:
 ## License
 
 This UI is part of the gRPC annotation sample project and follows the same license terms. 
+
+## RPCs and Nested Fields
+
+### Overview
+The UI lets you add RPC methods and nested messages to existing services without editing `.proto` files manually. It handles HTTP annotations, request/response message scaffolding, and basic validation.
+
+### Add RPC via UI
+1. Open the UI and scroll to the "Add RPC" section.
+2. Provide:
+   - Service Name (e.g., `Product`)
+   - RPC Name (PascalCase, e.g., `SearchProducts`)
+   - Request fields (comma-separated, `name:type`), e.g., `query:string,limit:int32`
+   - Response fields, e.g., `data:repeated Product`
+   - HTTP mapping, e.g., `GET:/v1/products:search`
+   - Body (optional): `*` for full body or `data` if wrapping payload
+3. Submit and then run `make proto` in the project root if the UI didn’t trigger regeneration.
+
+#### Example payload (UI calls this API)
+```json
+POST /api/rpc
+{
+  "serviceName": "Order",
+  "rpcName": "UpsertOrder",
+  "reqFields": "data:Order",
+  "resFields": "data:Order",
+  "http": "PUT:/v1/orders/{data.id}",
+  "body": "*"
+}
+```
+
+### Add Nested Message via UI
+1. Open the "Add Nested" section.
+2. Provide:
+   - Service Name (e.g., `Place`)
+   - Field Name (snake_case, e.g., `location`)
+   - Fields (comma-separated), e.g., `latitude:double,longitude:double`
+   - Repeated (optional, default `false`)
+   - Message Name (optional; defaults to capitalized field name)
+3. Submit and then run `make proto` in the project root if needed.
+
+#### Example payload (UI calls this API)
+```json
+POST /api/nested
+{
+  "serviceName": "Place",
+  "fieldName": "address",
+  "fields": "street:string,city:string,state:string,postal_code:string,country:string",
+  "repeated": false,
+  "messageName": "Address"
+}
+```
+
+### Field Syntax & Tips
+- Standard: `fieldName:type` (e.g., `name:string`)
+- Repeated: `fieldName:repeated type` or `repeated type fieldName`
+- Timestamps: use `timestamp` (UI normalizes to `google.protobuf.Timestamp` and adds import)
+- Custom messages: UI normalizes first letter to PascalCase (e.g., `userRef` → `UserRef`)
+- Sorting/pagination convention for list endpoints:
+  - Request: `page:int32,limit:int32,sort_by:string,sort_order:string`
+  - Response: `data:repeated <Message>,total:int64,page:int32,limit:int32`
+
+### Example Patterns
+- CRUD RPCs with HTTP:
+  - Create: `POST:/v1/entities` body `*`
+  - Get: `GET:/v1/entities/{id}`
+  - Update: `PUT:/v1/entities/{data.id}` body `*`
+  - Delete: `DELETE:/v1/entities/{id}`
+- Search RPC with HTTP:
+  - `GET:/v1/entities:search` with request fields `query:string,page:int32,limit:int32`
+
+### After Changes
+- The UI updates proto files; then run:
+```bash
+make proto
+```
+- Generated code will appear under `pb/` and service stubs under `services/`.
+
+### Troubleshooting
+- Duplicate definitions when regenerating:
+  - Open the affected `proto/*.proto` and remove duplicated RPC/message blocks (usually caused by adding the same RPC twice), then run `make proto` again.
+- Ensure `option go_package` matches the module path (the generator sets this automatically).
+- If UI fails to trigger regeneration, run `make proto` manually. 
