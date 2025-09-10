@@ -149,6 +149,7 @@ Add the following to your Claude for Desktop configuration:
 
 - **list_services**: List all existing gRPC services
 - **generate_service**: Create a new gRPC service with specified fields
+- **add_rpc**: Add an RPC to an existing service (generates messages, inserts HTTP mapping, appends Go stub)
 - **remove_service**: Remove a gRPC service and all its files
 - **regenerate_proto**: Regenerate protocol buffer files
 - **get_project_status**: Get project health and status
@@ -183,6 +184,13 @@ MCP_README.md          # Detailed MCP server documentation
 ```bash
 ./gen_service.sh User "name:string,email:string,age:int32,active:bool,created_at:timestamp"
 ./gen_service.sh Profile "favourites:repeated string,repeated UserRef followers"
+
+# Add RPC to existing service
+./gen_service.sh add-rpc Action SearchActions "query:string,limit:int32" "data:repeated Action" "http=GET:/v1/actions:search"
+
+# Add nested message and field to an existing service
+# Adds message Location { type:string, coordinates:repeated double } and field `location` to message ServiceName
+./gen_service.sh add-nested Place location "type:string,coordinates:repeated double"
 ```
 
 After creating services, regenerate code:

@@ -4,6 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>gRPC Service Manager</title>
+    <!-- Tailwind (CDN, for utility classes only; safe alongside existing CSS) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              border: '#e5e7eb',
+              input: '#e5e7eb',
+              ring: '#6366f1',
+              background: '#ffffff',
+              foreground: '#111827',
+              primary: {
+                DEFAULT: '#6366f1',
+                foreground: '#ffffff',
+              },
+              muted: {
+                DEFAULT: '#f3f4f6',
+                foreground: '#6b7280',
+              },
+              destructive: '#ef4444',
+            }
+          }
+        }
+      }
+    </script>
     <style>
         * {
             margin: 0;
@@ -25,6 +51,11 @@
             border-radius: 15px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             overflow: hidden;
+        }
+
+        /* shadcn-inspired tokens */
+        :root {
+            --radius: 12px;
         }
 
         .header {
@@ -50,6 +81,11 @@
 
         .section {
             margin-bottom: 40px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.04);
         }
 
         .section-title {
@@ -75,14 +111,16 @@
             width: 100%;
             padding: 12px;
             border: 2px solid #e1e5e9;
-            border-radius: 8px;
+            border-radius: 10px;
             font-size: 14px;
             transition: border-color 0.3s ease;
+            background: #fff;
         }
 
         .form-group input:focus, .form-group textarea:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(99,102,241,0.15);
         }
 
         .form-group textarea {
@@ -102,8 +140,9 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
             color: white;
+            border: 1px solid rgba(99,102,241,0.6);
         }
 
         .btn-primary:hover {
@@ -124,6 +163,7 @@
         .btn-secondary {
             background: #6c757d;
             color: white;
+            border: 1px solid rgba(107,114,128,0.4);
         }
 
         .btn-secondary:hover {
@@ -445,13 +485,22 @@
         </div>
 
         <div class="content">
+            <!-- Top Navigator -->
+            <div class="mb-6 flex items-center justify-between">
+                <div class="inline-flex rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
+                    <button id="tab-create" class="px-4 py-2 text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring" onclick="setTab('create')">Create</button>
+                    <button id="tab-nested" class="px-4 py-2 text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring border-l" onclick="setTab('nested')">Nested</button>
+                    <button id="tab-rpc" class="px-4 py-2 text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring border-l" onclick="setTab('rpc')">RPC</button>
+                    <button id="tab-existing" class="px-4 py-2 text-sm font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ring border-l" onclick="setTab('existing')">Existing</button>
+                </div>
+            </div>
             <!-- Create Service Section -->
-            <div class="section">
+            <div class="section" data-section="create">
                 <h2 class="section-title">Create New Service</h2>
                 
                 <div id="alert-container"></div>
 
-                <form id="create-service-form">
+                <form id="create-service-form" class="space-y-2">
                     <div class="form-group">
                         <label for="service-name">Service Name *</label>
                         <input type="text" id="service-name" name="serviceName" placeholder="e.g., User, Product, Order" required>
@@ -472,8 +521,10 @@
                         <p>This will create a User service with CRUD operations and REST endpoints.</p>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">✨ Create Service</button>
-                    <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary">✨ Create Service</button>
+                        <button type="button" class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+                    </div>
                 </form>
 
                 <div id="loading" class="loading">
@@ -482,8 +533,94 @@
                 </div>
             </div>
 
+            <!-- Add RPC Section -->
+            <div class="section" data-section="rpc" style="display:none">
+                <h2 class="section-title">Add RPC To Existing Service</h2>
+                <div id="rpc-alert-container"></div>
+                <form id="add-rpc-form" class="space-y-2">
+                    <div class="form-group">
+                        <label for="rpc-service-name">Service Name *</label>
+                        <select id="rpc-service-name" name="serviceName" required>
+                            <option value="" disabled selected>Select a service</option>
+                        </select>
+                        <div class="help-text">Choose from existing services detected in proto/</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="rpc-name">RPC Name *</label>
+                        <input type="text" id="rpc-name" name="rpcName" placeholder="e.g., SearchActions, UpsertAction" required>
+                        <div class="help-text">PascalCase method name. First letter auto-capitalized.</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="rpc-req-fields">Request Fields *</label>
+                        <textarea id="rpc-req-fields" name="reqFields" placeholder="query:string,limit:int32 or data:Action" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="rpc-res-fields">Response Fields *</label>
+                        <textarea id="rpc-res-fields" name="resFields" placeholder="data:repeated Action or data:Action" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="rpc-http">HTTP Mapping *</label>
+                        <input type="text" id="rpc-http" name="http" placeholder="GET:/v1/actions:search or PUT:/v1/actions/{data.id}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="rpc-body">Body (optional)</label>
+                        <input type="text" id="rpc-body" name="body" placeholder="* or data">
+                    </div>
+
+                    <div class="example">
+                        <h4>📝 Examples:</h4>
+                        <p><code>Service=Action, RPC=SearchActions, Req=query:string,limit:int32, Res=data:repeated Action, HTTP=GET:/v1/actions:search</code></p>
+                        <p><code>Service=Order, RPC=UpsertOrder, Req=data:Order, Res=data:Order, HTTP=PUT:/v1/orders/{data.id}, Body=*</code></p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">➕ Add RPC</button>
+                </form>
+            </div>
+
+            <!-- Add Nested Type Section -->
+            <div class="section" data-section="nested" style="display:none">
+                <h2 class="section-title">Add Nested Message To Service</h2>
+                <div id="nested-alert-container"></div>
+                <form id="add-nested-form" class="space-y-2">
+                    <div class="form-group">
+                        <label for="nested-service-name">Service Name *</label>
+                        <select id="nested-service-name" name="serviceName" required>
+                            <option value="" disabled selected>Select a service</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="nested-field-name">Field Name *</label>
+                        <input type="text" id="nested-field-name" name="fieldName" placeholder="e.g., location" required>
+                        <div class="help-text">snake_case recommended (stored as JSON/BSON tag)</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="nested-fields">Nested Fields *</label>
+                        <textarea id="nested-fields" name="fields" placeholder="type:string,coordinates:repeated double" required></textarea>
+                        <div class="help-text">Format: name:type (supports repeated and timestamp)</div>
+                    </div>
+                    <div class="form-group">
+                        <label><input type="checkbox" id="nested-repeated"> Repeated field</label>
+                    </div>
+                    <div class="form-group">
+                        <label for="nested-message-name">Message Name (optional)</label>
+                        <input type="text" id="nested-message-name" name="messageName" placeholder="e.g., Location (defaults to capitalized field name)">
+                    </div>
+
+                    <div class="example">
+                        <h4>📝 Examples:</h4>
+                        <p><code>Service=Place, Field=location, Fields=type:string,coordinates:repeated double</code></p>
+                        <p><code>Service=Event, Field=occurred_at, Fields=tz:string,when:timestamp, Message=OccurredAt</code></p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary">📦 Add Nested</button>
+                        <button type="button" class="btn btn-secondary" onclick="prefillNestedExample()">Example</button>
+                    </div>
+                </form>
+            </div>
+
             <!-- Existing Services Section -->
-            <div class="section">
+            <div class="section" data-section="existing" style="display:none">
                 <h2 class="section-title">Existing Services</h2>
                 <button class="btn btn-secondary" onclick="refreshServices()">🔄 Refresh Services</button>
                 
@@ -612,15 +749,28 @@
         document.addEventListener('DOMContentLoaded', function() {
             loadServices();
             setupEventListeners();
+            setTab('create');
         });
 
         function setupEventListeners() {
             const form = document.getElementById('create-service-form');
             form.addEventListener('submit', handleCreateService);
+            const rpcForm = document.getElementById('add-rpc-form');
+            rpcForm.addEventListener('submit', handleAddRpc);
+            const nestedForm = document.getElementById('add-nested-form');
+            nestedForm.addEventListener('submit', handleAddNested);
             
             // Auto-capitalize service name
             const serviceNameInput = document.getElementById('service-name');
             serviceNameInput.addEventListener('input', function() {
+                const value = this.value;
+                if (value.length > 0 && value[0] !== value[0].toUpperCase()) {
+                    this.value = value[0].toUpperCase() + value.slice(1);
+                }
+            });
+            // service select populated after loading services
+            const rpcNameInput = document.getElementById('rpc-name');
+            rpcNameInput.addEventListener('input', function() {
                 const value = this.value;
                 if (value.length > 0 && value[0] !== value[0].toUpperCase()) {
                     this.value = value[0].toUpperCase() + value.slice(1);
@@ -678,12 +828,57 @@
                 .join(',');
         }
 
+        // Parse inline nested syntax inside the create-service fields input.
+        // Supports: field:{a:string,b:repeated int32} or field:repeated {a:string}
+        // Returns { baseFields: string, nested: [{ fieldName, fields, repeated, messageName }] }
+        function extractInlineNested(fieldsStr) {
+            const segments = [];
+            let buf = '';
+            let depth = 0;
+            for (let i = 0; i < fieldsStr.length; i++) {
+                const ch = fieldsStr[i];
+                if (ch === '{') depth++;
+                if (ch === '}') depth--;
+                if (ch === ',' && depth === 0) {
+                    segments.push(buf.trim());
+                    buf = '';
+                } else {
+                    buf += ch;
+                }
+            }
+            if (buf.trim().length) segments.push(buf.trim());
+
+            const nested = [];
+            const base = [];
+
+            for (const seg of segments) {
+                // Match: name:repeated { ... } OR name:{ ... }
+                const m = seg.match(/^([a-z][A-Za-z0-9_]*):\s*(repeated\s+)?\{([\s\S]*)\}$/);
+                if (m) {
+                    const fieldName = m[1];
+                    const isRep = !!m[2];
+                    const inner = m[3].trim();
+                    // inner may include trailing/leading braces imbalance handled above
+                    // Split inner respecting no nested braces (single level supported)
+                    nested.push({ fieldName, fields: inner, repeated: isRep, messageName: '' });
+                } else {
+                    base.push(seg);
+                }
+            }
+
+            return { baseFields: base.filter(Boolean).join(','), nested };
+        }
+
         async function handleCreateService(e) {
             e.preventDefault();
             
             const formData = new FormData(e.target);
             const serviceName = formData.get('serviceName').trim();
             const serviceFieldsRaw = formData.get('serviceFields').trim();
+
+            // Extract inline nested definitions (field:{...}) and keep base fields
+            const extracted = extractInlineNested(serviceFieldsRaw);
+            const baseFieldsRaw = extracted.baseFields;
 
             if (!serviceName || !serviceFieldsRaw) {
                 showAlert('Please fill in all required fields.', 'error');
@@ -696,8 +891,10 @@
             return;
         }
 
+        
+
             // Normalize first so we can validate both repeated syntaxes
-            const normalizedFields = normalizeFieldsString(serviceFieldsRaw);
+            const normalizedFields = normalizeFieldsString(baseFieldsRaw);
             // Validate fields format (allow 'repeated type')
             const fieldRegex = /^[a-z][a-zA-Z0-9_]*:(repeated\s+)?[a-zA-Z][a-zA-Z0-9._]*(\s*,\s*[a-z][a-zA-Z0-9_]*:(repeated\s+)?[a-zA-Z][a-zA-Z0-9._]*)*$/;
             if (!fieldRegex.test(normalizedFields)) {
@@ -723,6 +920,32 @@
 
                 if (response.ok) {
                     showAlert(`Service "${serviceName}" created successfully!`, 'success');
+                    // If there are inline nested definitions, create them now
+                    for (const nest of extracted.nested) {
+                        const nestFieldsNormalized = normalizeFieldsString(nest.fields);
+                        const payload = {
+                            serviceName,
+                            fieldName: nest.fieldName,
+                            fields: nestFieldsNormalized,
+                            repeated: !!nest.repeated,
+                            messageName: nest.messageName || ''
+                        };
+                        try {
+                            const resp = await fetch('/api/nested', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            const rj = await resp.json();
+                            if (resp.ok && rj.success) {
+                                showAlert(`Nested "${nest.fieldName}" added to "${serviceName}".`, 'success');
+                            } else {
+                                showAlert(rj.error || `Failed to add nested "${nest.fieldName}".`, 'error');
+                            }
+                        } catch (e2) {
+                            showAlert(`Network error adding nested "${nest.fieldName}": ${e2.message}`, 'error');
+                        }
+                    }
                     clearForm();
                     loadServices();
                 } else {
@@ -746,6 +969,8 @@
                 if (response.ok) {
                     services = result.services || [];
                     renderServices();
+                    populateServiceSelect();
+                    populateNestedServiceSelect();
                 } else {
                     showAlert(result.error || 'Failed to load services.', 'error');
                     container.innerHTML = '<p>Failed to load services.</p>';
@@ -753,6 +978,43 @@
             } catch (error) {
                 showAlert('Network error: ' + error.message, 'error');
                 container.innerHTML = '<p>Network error occurred.</p>';
+            }
+        }
+
+        function populateServiceSelect() {
+            const select = document.getElementById('rpc-service-name');
+            if (!select) return;
+            const current = select.value;
+            // Reset options
+            select.innerHTML = '<option value="" disabled selected>Select a service</option>';
+            // Sort services alphabetically by name
+            const sorted = [...services].sort((a, b) => a.name.localeCompare(b.name));
+            sorted.forEach(svc => {
+                const opt = document.createElement('option');
+                opt.value = svc.name;
+                opt.textContent = svc.name;
+                select.appendChild(opt);
+            });
+            // Restore previous selection if still present
+            if (current && sorted.find(s => s.name === current)) {
+                select.value = current;
+            }
+        }
+
+        function populateNestedServiceSelect() {
+            const select = document.getElementById('nested-service-name');
+            if (!select) return;
+            const current = select.value;
+            select.innerHTML = '<option value="" disabled selected>Select a service</option>';
+            const sorted = [...services].sort((a, b) => a.name.localeCompare(b.name));
+            sorted.forEach(svc => {
+                const opt = document.createElement('option');
+                opt.value = svc.name;
+                opt.textContent = svc.name;
+                select.appendChild(opt);
+            });
+            if (current && sorted.find(s => s.name === current)) {
+                select.value = current;
             }
         }
 
@@ -864,6 +1126,31 @@
             loadServices();
         }
 
+        function setTab(name) {
+            const sections = document.querySelectorAll('[data-section]');
+            sections.forEach(s => {
+                s.style.display = (s.getAttribute('data-section') === name) ? 'block' : 'none';
+            });
+            const tabs = [
+                { id: 'tab-create', key: 'create' },
+                { id: 'tab-nested', key: 'nested' },
+                { id: 'tab-rpc', key: 'rpc' },
+                { id: 'tab-existing', key: 'existing' },
+            ];
+            tabs.forEach(t => {
+                const el = document.getElementById(t.id);
+                if (!el) return;
+                if (t.key === name) {
+                    el.classList.add('bg-gray-100');
+                } else {
+                    el.classList.remove('bg-gray-100');
+                }
+            });
+            if (name === 'existing' || name === 'nested' || name === 'rpc') {
+                loadServices();
+            }
+        }
+
         function clearForm() {
             document.getElementById('create-service-form').reset();
         }
@@ -884,6 +1171,133 @@
             setTimeout(() => {
                 alert.remove();
             }, 5000);
+        }
+
+        function showRpcAlert(message, type) {
+            const container = document.getElementById('rpc-alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        function showNestedAlert(message, type) {
+            const container = document.getElementById('nested-alert-container');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        async function handleAddNested(e) {
+            e.preventDefault();
+            const serviceName = document.getElementById('nested-service-name').value;
+            const fieldName = document.getElementById('nested-field-name').value.trim();
+            const fields = normalizeFieldsString(document.getElementById('nested-fields').value.trim());
+            const repeated = document.getElementById('nested-repeated').checked;
+            const messageName = (document.getElementById('nested-message-name').value || '').trim();
+
+            if (!serviceName || !fieldName || !fields) {
+                showNestedAlert('Please fill in all required fields.', 'error');
+                return;
+            }
+            if (!/^[a-z][a-zA-Z0-9_]*$/.test(fieldName)) {
+                showNestedAlert('Field name must be snake_case or lowerCamel (start with a letter).', 'error');
+                return;
+            }
+
+            // Retry logic: add-nested may run right after a fresh service is created; wait a bit and retry once
+            const attempt = async () => {
+                const resp = await fetch('/api/nested', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceName, fieldName, fields, repeated, messageName })
+                });
+                const result = await resp.json();
+                return { ok: resp.ok && result.success, msg: result.error };
+            };
+
+            try {
+                let r = await attempt();
+                if (!r.ok) {
+                    // brief delay then retry
+                    await new Promise(res => setTimeout(res, 300));
+                    r = await attempt();
+                }
+                if (r.ok) {
+                    showNestedAlert('Nested message added successfully!', 'success');
+                    e.target.reset();
+                    loadServices();
+                } else {
+                    showNestedAlert(r.msg || 'Failed to add nested message.', 'error');
+                }
+            } catch (err) {
+                showNestedAlert('Network error: ' + err.message, 'error');
+            }
+        }
+
+        function prefillNestedExample() {
+            const svc = document.getElementById('nested-service-name');
+            if (svc && !svc.value && services.length) svc.value = services[0].name;
+            document.getElementById('nested-field-name').value = 'location';
+            document.getElementById('nested-fields').value = 'type:string,coordinates:repeated double';
+            document.getElementById('nested-repeated').checked = false;
+            document.getElementById('nested-message-name').value = 'Location';
+            showNestedAlert('Example filled. Adjust and submit.', 'info');
+        }
+
+        // Add RPC with one retry (handles immediate use after service creation)
+        async function handleAddRpc(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const serviceName = formData.get('serviceName').trim();
+            const rpcName = formData.get('rpcName').trim();
+            const reqFields = normalizeFieldsString(formData.get('reqFields').trim());
+            const resFields = normalizeFieldsString(formData.get('resFields').trim());
+            const http = formData.get('http').trim();
+            const body = (formData.get('body') || '').trim();
+
+            if (!serviceName || !rpcName || !reqFields || !resFields || !http) {
+                showRpcAlert('Please fill in all required fields.', 'error');
+                return;
+            }
+            if (!/^[A-Z][a-zA-Z0-9]*$/.test(serviceName)) {
+                showRpcAlert('Service name must be PascalCase.', 'error');
+                return;
+            }
+            if (!/^[A-Z][a-zA-Z0-9]*$/.test(rpcName)) {
+                showRpcAlert('RPC name must be PascalCase.', 'error');
+                return;
+            }
+
+            const attempt = async () => {
+                const resp = await fetch('/api/rpc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ serviceName, rpcName, reqFields, resFields, http, body })
+                });
+                const result = await resp.json();
+                return { ok: resp.ok && result.success, msg: result.error };
+            };
+
+            try {
+                let r = await attempt();
+                if (!r.ok) {
+                    await new Promise(res => setTimeout(res, 300));
+                    r = await attempt();
+                }
+                if (r.ok) {
+                    showRpcAlert(`RPC "${rpcName}" added to "${serviceName}" successfully!`, 'success');
+                    e.target.reset();
+                    loadServices();
+                } else {
+                    showRpcAlert(r.msg || 'Failed to add RPC.', 'error');
+                }
+            } catch (err) {
+                showRpcAlert('Network error: ' + err.message, 'error');
+            }
         }
 
         // Auto-refresh services every 30 seconds

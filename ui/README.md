@@ -7,6 +7,8 @@ A modern, interactive web interface for managing gRPC services in your project. 
 - 🎨 **Modern UI**: Clean, responsive design with gradient backgrounds and smooth animations
 - ➕ **Create Services**: Easy form-based service creation with field validation
 - 🗑️ **Remove Services**: One-click service removal with confirmation
+- 🔧 **Add RPC**: Append new RPCs to existing services with HTTP annotations
+- 📦 **Add Nested**: Create nested messages and attach them to services
 - 📋 **Service Discovery**: Automatically detects existing services from proto files
 - 🔄 **Auto-refresh**: Services list updates automatically
 - 📱 **Responsive**: Works on desktop and mobile devices
@@ -45,6 +47,8 @@ The UI server provides these REST API endpoints:
 - `GET /api/services` - List all services
 - `POST /api/services` - Create a new service
 - `DELETE /api/services/{name}` - Remove a service
+- `POST /api/rpc` - Add a new RPC to an existing service
+- `POST /api/nested` - Add a nested message and field to a service
 
 ## Service Field Types
 
@@ -68,6 +72,11 @@ Supported Protocol Buffer field types:
 - **Timestamp alias**: `timestamp` is normalized to `google.protobuf.Timestamp` and the correct proto import is added automatically
 - **Custom messages**: Custom types are normalized to PascalCase for the first letter (e.g., `userRef` → `UserRef`)
 
+### Nested Messages (new)
+- You can generate a nested message and add it to an existing service using the CLI:
+  - `./gen_service.sh add-nested Place location "type:string,coordinates:repeated double"`
+- After that, refresh the UI; the new field will be reflected under the service.
+
 ## Examples
 
 ### User Service
@@ -86,6 +95,40 @@ Fields: name:string,description:string,price:double,stock:int32,category:string
 ```
 Service Name: Order
 Fields: customer_id:string,items:bytes,total:double,status:string,created_at:google.protobuf.Timestamp
+```
+
+### Add RPC to Existing Service
+```
+POST /api/rpc
+{
+  "serviceName": "Action",
+  "rpcName": "SearchActions",
+  "reqFields": "query:string,limit:int32",
+  "resFields": "data:repeated Action",
+  "http": "GET:/v1/actions:search"
+}
+
+POST /api/rpc
+{
+  "serviceName": "Order",
+  "rpcName": "UpsertOrder",
+  "reqFields": "data:Order",
+  "resFields": "data:Order",
+  "http": "PUT:/v1/orders/{data.id}",
+  "body": "*"
+}
+```
+
+### Add Nested Message
+```
+POST /api/nested
+{
+  "serviceName": "Place",
+  "fieldName": "location",
+  "fields": "type:string,coordinates:repeated double",
+  "repeated": false,
+  "messageName": "Location"  // optional; defaults to capitalized field name
+}
 ```
 
 ### Profile Service (repeated fields)

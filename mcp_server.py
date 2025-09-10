@@ -122,6 +122,54 @@ class ServiceManager:
                 "success": False,
                 "error": str(e)
             }
+
+    async def add_rpc(
+        self,
+        service_name: str,
+        rpc_name: str,
+        req_fields: str,
+        res_fields: str,
+        http_spec: str,
+        body_spec: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Add a new RPC to an existing service using gen_service.sh add-rpc"""
+        try:
+            cmd = [
+                str(self.gen_script),
+                "add-rpc",
+                service_name,
+                rpc_name,
+                req_fields,
+                res_fields,
+                f"http={http_spec}",
+            ]
+            if body_spec:
+                cmd.append(f"body={body_spec}")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                cwd=self.project_root,
+            )
+
+            if result.returncode != 0:
+                return {
+                    "success": False,
+                    "error": result.stderr,
+                    "output": result.stdout,
+                }
+
+            return {
+                "success": True,
+                "output": result.stdout,
+                "service_name": service_name,
+                "rpc_name": rpc_name,
+            }
+
+        except Exception as e:
+            logger.error(f"Error adding RPC: {e}")
+            return {"success": False, "error": str(e)}
     
     async def regenerate_proto(self) -> Dict[str, Any]:
         """Regenerate protocol buffer files"""
@@ -242,6 +290,35 @@ async def generate_service(service_name: str, fields: str) -> str:
     except Exception as e:
         logger.error(f"Error generating service: {e}")
         return f"Error generating service: {str(e)}"
+
+@mcp.tool()
+async def add_rpc(
+    service_name: str,
+    rpc_name: str,
+    req_fields: str,
+    res_fields: str,
+    http: str,
+    body: Optional[str] = None,
+) -> str:
+    """Add a new RPC to an existing service.
+
+    Args:
+        service_name: Target service (e.g., "User")
+        rpc_name: RPC method (PascalCase, e.g., "SearchUsers")
+        req_fields: Request fields (e.g., "query:string,limit:int32")
+        res_fields: Response fields (e.g., "data:repeated User")
+        http: HTTP mapping METHOD:/path (e.g., "GET:/v1/users:search")
+        body: Optional body mapping (e.g., "*" or "data")
+    """
+    try:
+        result = await service_manager.add_rpc(service_name, rpc_name, req_fields, res_fields, http, body)
+        if result["success"]:
+            return f"✅ RPC '{rpc_name}' added to service '{service_name}' successfully!\n\n{result['output']}"
+        else:
+            return f"❌ Failed to add RPC '{rpc_name}' to service '{service_name}':\n\n{result['error']}"
+    except Exception as e:
+        logger.error(f"Error adding RPC: {e}")
+        return f"Error adding RPC: {str(e)}"
 
 @mcp.tool()
 async def remove_service(service_name: str) -> str:
@@ -365,6 +442,12 @@ generate_service("Product", "name:string,description:string,price:float,stock:in
 ### Order Service
 ```
 generate_service("Order", "user_id:string,items:repeated string,total:float,status:string,created_at:timestamp")
+```
+
+### Add RPC to Existing Service
+```
+add_rpc("Action", "SearchActions", "query:string,limit:int32", "data:repeated Action", "GET:/v1/actions:search")
+add_rpc("Order", "UpsertOrder", "data:Order", "data:Order", "PUT:/v1/orders/{data.id}", "*")
 ```
 
 ## Generated Files

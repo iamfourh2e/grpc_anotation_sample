@@ -38,6 +38,8 @@ func main() {
 	// API endpoints
 	http.HandleFunc("/api/services", handleServices)
 	http.HandleFunc("/api/services/", handleServiceOperations)
+	http.HandleFunc("/api/rpc", handleRpc)
+	http.HandleFunc("/api/nested", handleNested)
 
 	fmt.Println("🚀 gRPC Service Manager UI starting on http://localhost:8081")
 	fmt.Println("📁 Serving UI from: ui/")
@@ -104,6 +106,128 @@ func handleServiceOperations(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+type AddRpcRequest struct {
+	ServiceName string `json:"serviceName"`
+	RpcName     string `json:"rpcName"`
+	ReqFields   string `json:"reqFields"`
+	ResFields   string `json:"resFields"`
+	Http        string `json:"http"`
+	Body        string `json:"body,omitempty"`
+}
+
+type AddNestedRequest struct {
+	ServiceName string `json:"serviceName"`
+	FieldName   string `json:"fieldName"`
+	Fields      string `json:"fields"`
+	Repeated    bool   `json:"repeated"`
+	MessageName string `json:"messageName,omitempty"`
+}
+
+func handleNested(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req AddNestedRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: "Invalid JSON request"})
+		return
+	}
+
+	if req.ServiceName == "" || req.FieldName == "" || req.Fields == "" {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: "serviceName, fieldName and fields are required"})
+		return
+	}
+
+	args := []string{"gen_service.sh", "add-nested", req.ServiceName, req.FieldName, req.Fields}
+	if req.Repeated {
+		args = append(args, "repeated")
+	}
+	if strings.TrimSpace(req.MessageName) != "" {
+		args = append(args, req.MessageName)
+	}
+	cmd := exec.Command("./"+args[0], args[1:]...)
+	cmd.Dir = ".."
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: fmt.Sprintf("Failed to add nested message: %v\nOutput: %s", err, string(output))})
+		return
+	}
+
+	protoCmd := exec.Command("make", "proto")
+	protoCmd.Dir = ".."
+	if protoOut, perr := protoCmd.CombinedOutput(); perr != nil {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: fmt.Sprintf("Nested added but proto regeneration failed: %v\nOutput: %s", perr, string(protoOut))})
+		return
+	}
+
+	json.NewEncoder(w).Encode(ServiceResponse{Success: true, Message: "Nested message and field added"})
+}
+
+func handleRpc(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req AddRpcRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: "Invalid JSON request"})
+		return
+	}
+
+	if req.ServiceName == "" || req.RpcName == "" || req.ReqFields == "" || req.ResFields == "" || req.Http == "" {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: "serviceName, rpcName, reqFields, resFields and http are required"})
+		return
+	}
+
+	// Execute gen_service.sh add-rpc
+	args := []string{"gen_service.sh", "add-rpc", req.ServiceName, req.RpcName, req.ReqFields, req.ResFields, fmt.Sprintf("http=%s", req.Http)}
+	if strings.TrimSpace(req.Body) != "" {
+		args = append(args, fmt.Sprintf("body=%s", req.Body))
+	}
+	cmd := exec.Command("./"+args[0], args[1:]...)
+	cmd.Dir = ".."
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: fmt.Sprintf("Failed to add RPC: %v\nOutput: %s", err, string(output))})
+		return
+	}
+
+	// Regenerate proto
+	protoCmd := exec.Command("make", "proto")
+	protoCmd.Dir = ".."
+	if protoOut, perr := protoCmd.CombinedOutput(); perr != nil {
+		json.NewEncoder(w).Encode(ServiceResponse{Success: false, Error: fmt.Sprintf("RPC added but proto regeneration failed: %v\nOutput: %s", perr, string(protoOut))})
+		return
+	}
+
+	json.NewEncoder(w).Encode(ServiceResponse{Success: true, Message: fmt.Sprintf("RPC '%s' added to '%s'", req.RpcName, req.ServiceName)})
 }
 
 func handleGetServices(w http.ResponseWriter, _ *http.Request) {
