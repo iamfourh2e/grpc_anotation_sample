@@ -822,16 +822,12 @@ for FIELD in "${FIELDS[@]}"; do
 done
 
 cat >> "$MODEL_FILE" <<EOF
-	CreatedAt time.Time \`json:"created_at" bson:"created_at"\`
-	UpdatedAt time.Time \`json:"updated_at" bson:"updated_at"\`
 }
 
 // New${SERVICE_NAME} creates a new ${SERVICE_NAME} instance with default values
 func New${SERVICE_NAME}() *${SERVICE_NAME} {
 	return &${SERVICE_NAME}{
 		ID:        primitive.NewObjectID().Hex(),
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
 	}
 }
 
@@ -967,8 +963,6 @@ for FIELD in "${FIELDS[@]}"; do
 done
 
 cat >> "$MODEL_FILE" <<EOF
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
 	}
 	
 	return m
