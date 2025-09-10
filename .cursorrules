@@ -2,7 +2,7 @@
 
 ## Mission
 - Analyze the Go gRPC/Gateway project and implement business logic cleanly.
-- Use grpc-manager tools to scaffold and maintain proto/services/models.
+- Must Use grpc-manager tools to scaffold and maintain proto/services/models.
 - Write and run tests; all tests must pass before features are complete.
 
 ## Conventions
