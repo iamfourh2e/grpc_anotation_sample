@@ -14,6 +14,13 @@
 - Logging: shared logger with context.
 - DB: use `context.Context` on all operations; create indexes for frequently queried fields; design for query patterns.
 
+## MongoDB Client Policy
+- If a MongoDB client already exists in the codebase, implement repositories/services directly against MongoDB using that client. Do not introduce alternative storage (in-memory, file, or SQLite) for primary paths.
+- Reuse the existing MongoDB client/connection provider (no duplicate clients). Prefer injecting the shared client into repositories/services.
+- Follow existing configuration and connection settings defined in the project. Do not add new env vars unless necessary; extend existing config when needed.
+- Ensure collection names follow `snake_case` and align with query patterns; create indexes as part of repository initialization where appropriate.
+- All CRUD, pagination, filtering, and soft-delete must be implemented with MongoDB operations and aggregation pipelines as required.
+
 ## Default Development Flow
 1. Analyze requirements and code paths (prefer semantic search over raw grep).
 2. Add/Update models in `models/` with constructors and defaults.
