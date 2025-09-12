@@ -1,17 +1,18 @@
-# Cursor Rules for grpc_anotation_sample
+# Cursor Rules for mypos
 
 ## Mission
 - Analyze the Go gRPC/Gateway project and implement business logic cleanly.
-- Must Use grpc-manager tools to scaffold and maintain proto/services/models.
+- Must use grpc-manager tools to scaffold and maintain proto/services/models.
 - Write and run tests; all tests must pass before features are complete.
+- If a client app exists (Vue/React/HTML+Javascript), connect to it using the existing API.
 
 ## Conventions
 - IDs: use MongoDB `primitive.NewObjectID().Hex()`; store as strings in models and proto.
-- Proto: include `option go_package = "grpc_anotation_sample/pb";`; messages use Request/Response suffixes; use `google.protobuf.Timestamp` for time fields; add HTTP annotations.
+- Proto: include `option go_package = "mypos/pb";`; messages use Request/Response suffixes; use `google.protobuf.Timestamp` for time fields; add HTTP annotations.
 - Naming: files `snake_case`; JSON fields `camelCase`; Go structs/interfaces `PascalCase`; Mongo collections `snake_case`.
 - Structure: each service has its own proto and service file; generated code in `pb/`.
 - Logging: shared logger with context.
-- DB: use context on all ops; create indexes for frequently queried fields; design for query patterns.
+- DB: use `context.Context` on all operations; create indexes for frequently queried fields; design for query patterns.
 
 ## Default Development Flow
 1. Analyze requirements and code paths (prefer semantic search over raw grep).
@@ -22,6 +23,7 @@
 6. Tests: unit and integration (separate test DB via env). Include positive/negative, pagination/filtering, and index coverage if applicable.
 7. Register service in `server/grpc.go` and `server/gateway.go` (verify registrations after generation).
 8. Re-run tests; fix regressions.
+9. Connect to the client (if present) via the generated REST/gRPC endpoints.
 
 ## grpc-manager Tools
 - generate_service(Service, fields)
@@ -30,6 +32,7 @@
 - remove_service(Service)
 - regenerate_proto()
 - get_project_status()
+
 Policy:
 - After structural changes, immediately regenerate and verify status.
 - If regeneration fails (e.g., duplicates), resolve in `proto/*.proto` then regenerate.
@@ -47,7 +50,7 @@ Policy:
 - Comprehensive logging; detailed error codes/messages and user-friendly responses.
 
 ## Security & Error Handling
-- Hash passwords with bcrypt; use JWT; validate inputs; access controls; secure endpoints.
+- Hash passwords with bcrypt; use JWT; validate inputs; enforce access controls; secure endpoints.
 - Log with context; handle failures gracefully.
 
 ## Operational Discipline in Cursor
