@@ -596,8 +596,8 @@ snake_to_camel() {
 
 # Pre-process fields to decide imports and build message body
 TIMESTAMP_USED=0
-FIELD_LINES=""
-FIELD_NUM=1
+FIELD_LINES="  string id = 1;\n"
+FIELD_NUM=2
 IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
 for FIELD in "${FIELDS[@]}"; do
   RAW_TRIMMED="$(echo "$FIELD" | xargs)"
@@ -749,15 +749,17 @@ package models
 
 import (
 	"time"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"${MODULE_PATH}/pb"
 )
 
 // ${SERVICE_NAME} represents the ${SERVICE_NAME_LC} entity in the database
 type ${SERVICE_NAME} struct {
+	ID        string    \`json:"id" bson:"_id"\`
 EOF
 
 # Add fields to model struct
-FIELD_NUM=1
+FIELD_NUM=2
 IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
 for FIELD in "${FIELDS[@]}"; do
   RAW_TRIMMED="$(echo "$FIELD" | xargs)"
@@ -820,20 +822,27 @@ for FIELD in "${FIELDS[@]}"; do
 done
 
 cat >> "$MODEL_FILE" <<EOF
+	CreatedAt time.Time \`json:"created_at" bson:"created_at"\`
+	UpdatedAt time.Time \`json:"updated_at" bson:"updated_at"\`
 }
 
 // New${SERVICE_NAME} creates a new ${SERVICE_NAME} instance with default values
 func New${SERVICE_NAME}() *${SERVICE_NAME} {
-	return &${SERVICE_NAME}{}
+	return &${SERVICE_NAME}{
+		ID:        primitive.NewObjectID().Hex(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
 }
 
 // ToProto converts the model to a protobuf message
 func (m *${SERVICE_NAME}) ToProto() *pb.${SERVICE_NAME} {
 	proto := &pb.${SERVICE_NAME}{
+		Id: m.ID,
 EOF
 
 # Add field mappings for ToProto
-FIELD_NUM=1
+FIELD_NUM=2
 IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
 for FIELD in "${FIELDS[@]}"; do
   RAW_TRIMMED="$(echo "$FIELD" | xargs)"
@@ -899,10 +908,11 @@ func ${SERVICE_NAME}FromProto(p *pb.${SERVICE_NAME}) *${SERVICE_NAME} {
 	}
 	
 	m := &${SERVICE_NAME}{
+		ID:        p.Id,
 EOF
 
 # Add field mappings for FromProto
-FIELD_NUM=1
+FIELD_NUM=2
 IFS=',' read -ra FIELDS <<< "$FIELDS_RAW"
 for FIELD in "${FIELDS[@]}"; do
   RAW_TRIMMED="$(echo "$FIELD" | xargs)"
@@ -957,6 +967,8 @@ for FIELD in "${FIELDS[@]}"; do
 done
 
 cat >> "$MODEL_FILE" <<EOF
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}
 	
 	return m
